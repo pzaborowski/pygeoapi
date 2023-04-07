@@ -82,15 +82,15 @@ class ESRIServiceProvider(BaseProvider):
             resp = self.get_response(self.data, params=params)
 
             if resp.get('error') is not None:
-                msg = 'Connection error: {}'.format(resp['error']['message'])
+                msg = f"Connection error: {resp['error']['message']}"
                 LOGGER.error(msg)
                 raise ProviderConnectionError(msg)
 
             try:
                 # Verify Feature/Map Service supports required capabilities
                 advCapabilities = resp['advancedQueryCapabilities']
-                assert advCapabilities['supportsPagination'] is True
-                assert advCapabilities['supportsOrderBy'] is True
+                assert advCapabilities['supportsPagination']
+                assert advCapabilities['supportsOrderBy']
                 assert 'geoJSON' in resp['supportedQueryFormats']
             except KeyError:
                 msg = f'Could not access resource {self.data}'
@@ -283,9 +283,8 @@ class ESRIServiceProvider(BaseProvider):
         if datetime_ is not None:
 
             def esri_dt(dt):
-                return "TIMESTAMP '{}'".format(
-                    format_datetime(dt, '%Y-%m-%d %H:%M:%S')
-                )
+                dt_ = format_datetime(dt, '%Y-%m-%d %H:%M:%S')
+                return f"TIMESTAMP '{dt_}'"
 
             tf = self.time_field
             if '/' in datetime_:

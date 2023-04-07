@@ -9,12 +9,15 @@ Features
 --------
 
 * out of the box modern OGC API server
-* certified OGC Compliant and Reference Implementation for OGC API - Features
+* certified OGC Compliant and Reference Implementation
+  * OGC API - Features
+  * OGC API - Environmental Data Retrieval
 * additionally implements
   * OGC API - Coverages
+  * OGC API - Maps
   * OGC API - Tiles
   * OGC API - Processes
-  * OGC API - Environmental Data Retrieval
+  * OGC API - Records
   * SpatioTemporal Asset Library
 * out of the box data provider plugins for rasterio, GDAL/OGR, Elasticsearch, PostgreSQL/PostGIS
 * easy to use OpenAPI / Swagger documentation for developers
@@ -43,10 +46,11 @@ Standards are at the core of pygeoapi.  Below is the project's standards support
 
    `OGC API - Features`_,Reference Implementation
    `OGC API - Coverages`_,Implementing
+   `OGC API - Maps`_,Implementing
    `OGC API - Tiles`_,Implementing
    `OGC API - Processes`_,Implementing
    `OGC API - Records`_,Implementing
-   `OGC API - Environmental Data Retrieval`_,Implementing
+   `OGC API - Environmental Data Retrieval`_,Reference Implementation
    `SpatioTemporal Asset Catalog`_,Implementing
 
 
@@ -54,6 +58,7 @@ Standards are at the core of pygeoapi.  Below is the project's standards support
 .. _`OGC API`: https://ogcapi.ogc.org
 .. _`OGC API - Features`: https://www.ogc.org/standards/ogcapi-features
 .. _`OGC API - Coverages`: https://github.com/opengeospatial/ogcapi-coverages
+.. _`OGC API - Maps`: https://github.com/opengeospatial/ogcapi-maps
 .. _`OGC API - Tiles`: https://github.com/opengeospatial/ogcapi-tiles
 .. _`OGC API - Processes`: https://github.com/opengeospatial/ogcapi-processes
 .. _`OGC API - Records`: https://github.com/opengeospatial/ogcapi-records

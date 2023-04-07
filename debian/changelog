@@ -1,3 +1,21 @@
+pygeoapi (0.14.0-1~focal0) focal; urgency=medium
+
+  * New upstream release
+
+ -- Angelos Tzotsos <gcpp.kalxas@gmail.com>  Fri, 03 Feb 2023 14:00:00 +0200
+
+pygeoapi (0.13.0-1~focal1) focal; urgency=medium
+
+  * Add pygeofilter in debian dependencies
+
+ -- Angelos Tzotsos <gcpp.kalxas@gmail.com>  Sat, 08 Jan 2023 14:00:00 +0200
+
+pygeoapi (0.13.0-1~focal0) focal; urgency=medium
+
+  * New upstream release
+
+ -- Angelos Tzotsos <gcpp.kalxas@gmail.com>  Tue, 15 Nov 2022 16:00:00 +0200
+
 pygeoapi (0.12.0-1~focal0) focal; urgency=medium
   
   * New upstream release

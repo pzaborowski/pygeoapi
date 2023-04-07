@@ -2,7 +2,7 @@
 #
 # Authors: Tom Kralidis <tomkralidis@gmail.com>
 #
-# Copyright (c) 2020 Tom Kralidis
+# Copyright (c) 2022 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -30,42 +30,43 @@
 """Generic util functions used in the code"""
 
 import base64
-from typing import List
-from datetime import date, datetime, time
-from decimal import Decimal
-from enum import Enum
-import io
 import json
 import logging
 import mimetypes
 import os
 import re
-from urllib.request import urlopen
+from datetime import date, datetime, time
+from decimal import Decimal
+from enum import Enum
+from pathlib import Path
+from typing import Any, IO, Union, List
 from urllib.parse import urlparse
-from shapely.geometry import Polygon
+from urllib.request import urlopen
 
 import dateutil.parser
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-from babel.support import Translations
-from jinja2.exceptions import TemplateNotFound
 import yaml
+from babel.support import Translations
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from shapely.geometry import Polygon
+from requests import Session
+from requests.structures import CaseInsensitiveDict
 
 from pygeoapi import __version__
 from pygeoapi import l10n
+from pygeoapi.models import config as config_models
 from pygeoapi.provider.base import ProviderTypeError
 
 LOGGER = logging.getLogger(__name__)
 
 DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 
-TEMPLATES = '{}{}templates'.format(os.path.dirname(
-    os.path.realpath(__file__)), os.sep)
+TEMPLATES = Path(__file__).parent.resolve() / 'templates'
 
 mimetypes.add_type('text/plain', '.yaml')
 mimetypes.add_type('text/plain', '.yml')
 
 
-def dategetter(date_property, collection):
+def dategetter(date_property: str, collection: dict) -> str:
     """
     Attempts to obtain a date value from a collection.
 
@@ -76,7 +77,7 @@ def dategetter(date_property, collection):
                for an open interval using null)
     """
 
-    value = collection.get(date_property, None)
+    value = collection.get(date_property)
 
     if value is None:
         return None
@@ -84,7 +85,7 @@ def dategetter(date_property, collection):
     return value.isoformat()
 
 
-def get_typed_value(value):
+def get_typed_value(value: str) -> Union[float, int, str]:
     """
     Derive true type from data value
 
@@ -106,7 +107,7 @@ def get_typed_value(value):
     return value2
 
 
-def yaml_load(fh):
+def yaml_load(fh: IO) -> dict:
     """
     serializes a YAML files into a pyyaml object
 
@@ -122,7 +123,7 @@ def yaml_load(fh):
     def path_constructor(loader, node):
         env_var = path_matcher.match(node.value).group(1)
         if env_var not in os.environ:
-            msg = 'Undefined environment variable {} in config'.format(env_var)
+            msg = f'Undefined environment variable {env_var} in config'
             raise EnvironmentError(msg)
         return get_typed_value(os.path.expandvars(node.value))
 
@@ -135,7 +136,24 @@ def yaml_load(fh):
     return yaml.load(fh, Loader=EnvVarLoader)
 
 
-def str2bool(value):
+def get_api_rules(config: dict) -> config_models.APIRules:
+    """ Extracts the default API design rules from the given configuration.
+
+    :param config:  Current pygeoapi configuration (dictionary).
+    :returns:       An APIRules instance.
+    """
+    rules = config['server'].get('api_rules') or {}
+    rules.setdefault('api_version', __version__)
+    return config_models.APIRules.create(**rules)
+
+
+def get_base_url(config: dict) -> str:
+    """ Returns the full pygeoapi base URL. """
+    rules = get_api_rules(config)
+    return url_join(config['server']['url'], rules.get_url_prefix())
+
+
+def str2bool(value: Union[bool, str]) -> bool:
     """
     helper function to return Python boolean
     type (source: https://stackoverflow.com/a/715468)
@@ -155,7 +173,7 @@ def str2bool(value):
     return value2
 
 
-def to_json(dict_, pretty=False):
+def to_json(dict_: dict, pretty: bool = False) -> str:
     """
     Serialize dict to json
 
@@ -170,11 +188,10 @@ def to_json(dict_, pretty=False):
     else:
         indent = None
 
-    return json.dumps(dict_, default=json_serial,
-                      indent=indent)
+    return json.dumps(dict_, default=json_serial, indent=indent)
 
 
-def format_datetime(value, format_=DATETIME_FORMAT):
+def format_datetime(value: str, format_: str = DATETIME_FORMAT) -> str:
     """
     Parse datetime as ISO 8601 string; re-present it in particular format
     for display in HTML
@@ -191,7 +208,7 @@ def format_datetime(value, format_=DATETIME_FORMAT):
     return dateutil.parser.isoparse(value).strftime(format_)
 
 
-def file_modified_iso8601(filepath):
+def file_modified_iso8601(filepath: Path) -> str:
     """
     Provide a file's ctime in ISO8601
 
@@ -204,7 +221,7 @@ def file_modified_iso8601(filepath):
         os.path.getctime(filepath)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
-def human_size(nbytes):
+def human_size(nbytes: int) -> str:
     """
     Provides human readable file size
 
@@ -229,12 +246,12 @@ def human_size(nbytes):
     elif suffixes[i] == 'B':
         return nbytes
     else:
-        f = '{:.1f}'.format(nbytes).rstrip('0').rstrip('.')
+        f = f'{nbytes:.1f}'.rstrip('0').rstrip('.')
 
-    return '{}{}'.format(f, suffixes[i])
+    return f'{f}{suffixes[i]}'
 
 
-def format_duration(start, end=None):
+def format_duration(start: str, end: str = None) -> str:
     """
     Parse a start and (optional) end datetime as ISO 8601 strings, calculate
     the difference, and return that duration as a string.
@@ -244,6 +261,7 @@ def format_duration(start, end=None):
 
     :returns: string
     """
+
     if not isinstance(start, str) or not start.strip():
         return ''
     end = end or start
@@ -251,7 +269,7 @@ def format_duration(start, end=None):
     return str(duration)
 
 
-def get_path_basename(urlpath):
+def get_path_basename(urlpath: str) -> str:
     """
     Helper function to derive file basename
 
@@ -260,14 +278,16 @@ def get_path_basename(urlpath):
     :returns: string of basename of URL path
     """
 
-    return os.path.basename(urlpath)
+    return Path(urlpath).name
 
 
-def json_serial(obj):
+def json_serial(obj: Any) -> str:
     """
     helper function to convert to JSON non-default
     types (source: https://stackoverflow.com/a/22238613)
+
     :param obj: `object` to be evaluated
+
     :returns: JSON non-default type to `str`
     """
 
@@ -282,20 +302,26 @@ def json_serial(obj):
             return base64.b64encode(obj)
     elif isinstance(obj, Decimal):
         return float(obj)
+    elif type(obj).__name__ == 'int64':
+        return int(obj)
+    elif type(obj).__name__ == 'float64':
+        return float(obj)
     elif isinstance(obj, l10n.Locale):
         return l10n.locale2str(obj)
 
-    msg = '{} type {} not serializable'.format(obj, type(obj))
+    msg = f'{obj} type {type(obj)} not serializable'
     LOGGER.error(msg)
     raise TypeError(msg)
 
 
-def is_url(urlstring):
+def is_url(urlstring: str) -> bool:
     """
     Validation function that determines whether a candidate URL should be
     considered a URI. No remote resource is obtained; this does not check
     the existence of any remote resource.
+
     :param urlstring: `str` to be evaluated as candidate URL.
+
     :returns: `bool` of whether the URL looks like a URL.
     """
     try:
@@ -305,7 +331,8 @@ def is_url(urlstring):
         return False
 
 
-def render_j2_template(config, template, data, locale_=None):
+def render_j2_template(config: dict, template: Path,
+                       data: dict, locale_: str = None) -> str:
     """
     render Jinja2 template
 
@@ -317,21 +344,22 @@ def render_j2_template(config, template, data, locale_=None):
     :returns: string of rendered template
     """
 
-    custom_templates = False
+    template_paths = [TEMPLATES, '.']
+
+    locale_dir = config['server'].get('locale_dir', 'locale')
+    LOGGER.debug(f'Locale directory: {locale_dir}')
+
     try:
-        templates_path = config['server']['templates']['path']
-        env = Environment(loader=FileSystemLoader(templates_path),
-                          extensions=['jinja2.ext.i18n',
-                                      'jinja2.ext.autoescape'],
-                          autoescape=select_autoescape(['html', 'xml']))
-        custom_templates = True
-        LOGGER.debug('using custom templates: {}'.format(templates_path))
+        templates = config['server']['templates']['path']
+        template_paths.insert(0, templates)
+        LOGGER.debug(f'using custom templates: {templates}')
     except (KeyError, TypeError):
-        env = Environment(loader=FileSystemLoader(TEMPLATES),
-                          extensions=['jinja2.ext.i18n',
-                                      'jinja2.ext.autoescape'],
-                          autoescape=select_autoescape(['html', 'xml']))
-        LOGGER.debug('using default templates: {}'.format(TEMPLATES))
+        LOGGER.debug(f'using default templates: {TEMPLATES}')
+
+    env = Environment(loader=FileSystemLoader(template_paths),
+                      extensions=['jinja2.ext.i18n',
+                                  'jinja2.ext.autoescape'],
+                      autoescape=select_autoescape(['html', 'xml']))
 
     env.filters['to_json'] = to_json
     env.filters['format_datetime'] = format_datetime
@@ -348,27 +376,16 @@ def render_j2_template(config, template, data, locale_=None):
     env.filters['filter_dict_by_key_value'] = filter_dict_by_key_value
     env.globals.update(filter_dict_by_key_value=filter_dict_by_key_value)
 
-    translations = Translations.load('locale', [locale_])
+    translations = Translations.load(locale_dir, [locale_])
     env.install_gettext_translations(translations)
 
-    try:
-        template = env.get_template(template)
-    except TemplateNotFound as err:
-        if custom_templates:
-            LOGGER.debug(err)
-            LOGGER.debug('Custom template not found; using default')
-            env = Environment(loader=FileSystemLoader(TEMPLATES),
-                              extensions=['jinja2.ext.i18n'])
-            env.install_gettext_translations(translations)
-            template = env.get_template(template)
-        else:
-            raise
+    template = env.get_template(template)
 
     return template.render(config=l10n.translate_struct(config, locale_, True),
                            data=data, locale=locale_, version=__version__)
 
 
-def get_mimetype(filename):
+def get_mimetype(filename: str) -> str:
     """
     helper function to return MIME type of a given file
 
@@ -380,7 +397,7 @@ def get_mimetype(filename):
     return mimetypes.guess_type(filename)[0]
 
 
-def get_breadcrumbs(urlpath):
+def get_breadcrumbs(urlpath: str) -> list:
     """
     helper function to make breadcrumbs from a URL path
 
@@ -407,7 +424,7 @@ def get_breadcrumbs(urlpath):
     return links
 
 
-def filter_dict_by_key_value(dict_, key, value):
+def filter_dict_by_key_value(dict_: dict, key: str, value: str) -> dict:
     """
     helper function to filter a dict by a dict key
 
@@ -421,7 +438,7 @@ def filter_dict_by_key_value(dict_, key, value):
     return {k: v for (k, v) in dict_.items() if v[key] == value}
 
 
-def filter_providers_by_type(providers, type):
+def filter_providers_by_type(providers: list, type: str) -> dict:
     """
     helper function to filter a list of providers by type
 
@@ -432,20 +449,20 @@ def filter_providers_by_type(providers, type):
     """
 
     providers_ = {provider['type']: provider for provider in providers}
-    return providers_.get(type, None)
+    return providers_.get(type)
 
 
-def get_provider_by_type(providers, provider_type):
+def get_provider_by_type(providers: list, provider_type: str) -> dict:
     """
     helper function to load a provider by a provider type
 
     :param providers: ``list`` of providers
-    :param provider_type: type of provider (feature)
+    :param provider_type: type of provider (e.g. feature)
 
     :returns: provider based on type
     """
 
-    LOGGER.debug('Searching for provider type {}'.format(provider_type))
+    LOGGER.debug(f'Searching for provider type {provider_type}')
     try:
         p = (next(d for i, d in enumerate(providers)
                   if d['type'] == provider_type))
@@ -455,7 +472,7 @@ def get_provider_by_type(providers, provider_type):
     return p
 
 
-def get_provider_default(providers):
+def get_provider_default(providers: list) -> dict:
     """
     helper function to get a resource's default provider
 
@@ -472,7 +489,7 @@ def get_provider_default(providers):
         LOGGER.debug('no default provider type.  Returning first provider')
         default = providers[0]
 
-    LOGGER.debug('Default provider: {}'.format(default['type']))
+    LOGGER.debug(f"Default provider: {default['type']}")
     return default
 
 
@@ -489,17 +506,16 @@ class JobStatus(Enum):
     dismissed = 'dismissed'
 
 
-def read_data(path):
+def read_data(path: Union[Path, str]) -> Union[bytes, str]:
     """
-    helper function to read data (file or networrk)
+    helper function to read data (file or network)
     """
 
-    LOGGER.debug('Attempting to read {}'.format(path))
-    scheme = urlparse(path).scheme
+    LOGGER.debug(f'Attempting to read {path}')
 
-    if scheme in ['', 'file']:
+    if isinstance(path, Path) or not path.startswith(('http', 's3')):
         LOGGER.debug('local file on disk')
-        with io.open(path, 'rb') as fh:
+        with Path(path).open('rb') as fh:
             return fh.read()
     else:
         LOGGER.debug('network file')
@@ -507,7 +523,7 @@ def read_data(path):
             return r.read()
 
 
-def url_join(*parts):
+def url_join(*parts: str) -> str:
     """
     helper function to join a URL from a number of parts/fragments.
     Implemented because urllib.parse.urljoin strips subpaths from
@@ -520,10 +536,10 @@ def url_join(*parts):
     :returns: str of resulting URL
     """
 
-    return '/'.join([p.strip().strip('/') for p in parts])
+    return '/'.join([p.strip().strip('/') for p in parts]).rstrip('/')
 
 
-def get_envelope(coords_list: List[List[float]]):
+def get_envelope(coords_list: List[List[float]]) -> list:
     """
     helper function to get the envelope for a given coordinates
     list through the Shapely API.
@@ -538,3 +554,28 @@ def get_envelope(coords_list: List[List[float]]):
     bounds = polygon.bounds
     return [[bounds[0], bounds[3]],
             [bounds[2], bounds[1]]]
+
+
+class UrlPrefetcher:
+    """ Prefetcher to get HTTP headers for specific URLs.
+    Allows a maximum of 1 redirect by default.
+    """
+    def __init__(self):
+        self._session = Session()
+        self._session.max_redirects = 1
+
+    def get_headers(self, url: str, **kwargs) -> CaseInsensitiveDict:
+        """ Issues an HTTP HEAD request to the given URL.
+        Returns a case-insensitive dictionary of all headers.
+        If the request times out (defaults to 1 second unless `timeout`
+        keyword argument is set), or the response has a bad status code,
+        an empty dictionary is returned.
+        """
+        kwargs.setdefault('timeout', 1)
+        kwargs.setdefault('allow_redirects', True)
+        try:
+            response = self._session.head(url, **kwargs)
+            response.raise_for_status()
+        except Exception:  # noqa
+            return CaseInsensitiveDict()
+        return response.headers

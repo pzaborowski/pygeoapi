@@ -174,11 +174,15 @@ Translator guide
 ----------------
 
 Hardcoded strings in pygeoapi templates are translated using the Babel translation system.
-Translation files are stored on the `/locale` folder.
+
+By default, pygeoapi stores translation files in the `locale` directory at the root of the
+source code repository. This value can be overriden in the pygeoapi configuration with
+the `server.locale_dir` directive.
+
 Translators can follow these steps to prepare their environment for translations.
 
 
-1. Extract from latest code the keys to be translated. These keys are captured in a `.pot` file.  Note that the `.pot` file is not to be stored in version control, but as an intermediary file used to update `/locale/*/LC_MESSAGES/messages.po` files:
+1. Extract from latest code the keys to be translated. These keys are captured in a `.pot` file.  Note that the `.pot` file is not to be stored in version control, but as an intermediary file used to update `locale/*/LC_MESSAGES/messages.po` files:
 
    .. code-block:: bash
 
@@ -273,7 +277,7 @@ Notes
   * JSON(-LD) responses returned from providers will **not** have a ``Content-Language`` header if ``language`` is ``None``.
 
 * If the provider supports a requested language, the passed-in ``language`` will be set to the best matching
-  `Babel Locale instance <http://babel.pocoo.org/en/latest/api/core.html#babel.core.Locale>`_.
+  `Babel Locale instance <https://babel.pocoo.org/en/latest/api/core.html>`_.
   Note that this may be the provider default language if no proper match was found.
   No matter the output format, API responses returned from providers will always contain a best-matching ``Content-Language``
   header if one ore more supported provider languages were defined.

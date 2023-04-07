@@ -3,6 +3,7 @@
 # Authors: yves.choquette <yves.choquette@NRCan-RNCan.gc.ca>
 #
 # Copyright (c) 2022 Yves Choquette
+# Copyright (c) 2023 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -30,10 +31,10 @@
 import requests
 import logging
 import os
-from urllib.parse import urljoin
 import json
 
 from pygeoapi.provider.base import (BaseProvider, ProviderNotFoundError)
+from pygeoapi.util import url_join
 
 LOGGER = logging.getLogger(__name__)
 
@@ -74,10 +75,10 @@ class HateoasProvider(BaseProvider):
         if '/' not in entrypath:  # root
             root_link = baseurl
         else:
-            parentpath = urljoin(thispath, '.')
+            parentpath = url_join(thispath, '.')
             child_links.append({
                 'rel': 'parent',
-                'href': '{}?f=json'.format(parentpath),
+                'href': f'{parentpath}?f=json',
                 'type': 'application/json'
             })
             child_links.append({
@@ -88,12 +89,12 @@ class HateoasProvider(BaseProvider):
 
             depth = entrypath.count('/')
             root_path = '/'.replace('/', '../' * depth, 1)
-            root_link = urljoin(thispath, root_path)
+            root_link = url_join(thispath, root_path)
 
         content = {
             'links': [{
                 'rel': 'root',
-                'href': '{}?f=json'.format(root_link),
+                'href': f'{root_link}?f=json',
                 'type': 'application/json'
                 }, {
                 'rel': 'root',
@@ -101,7 +102,7 @@ class HateoasProvider(BaseProvider):
                 'type': 'text/html'
                 }, {
                 'rel': 'self',
-                'href': '{}?f=json'.format(thispath),
+                'href': f'{thispath}?f=json',
                 'type': 'application/json',
                 }, {
                 'rel': 'self',
@@ -113,19 +114,19 @@ class HateoasProvider(BaseProvider):
 
         LOGGER.debug('Checking if path exists as Catalog, Collection or Asset')
         try:
-            jsondata = _get_json_data('{}/catalog.json'.format(data_path))
+            jsondata = _get_json_data(f'{data_path}/catalog.json')
             resource_type = 'Catalog'
         except Exception:
             try:
-                jsondata = _get_json_data('{}/collection.json'.format(data_path)) # noqa
+                jsondata = _get_json_data(f'{data_path}/collection.json')
                 resource_type = 'Collection'
             except Exception:
                 try:
                     filename = os.path.basename(data_path)
-                    jsondata = _get_json_data('{}/{}.json'.format(data_path, filename)) # noqa
+                    jsondata = _get_json_data(f'{data_path}/{filename}.json')
                     resource_type = 'Assets'
                 except Exception:
-                    msg = 'Resource does not exist: {}'.format(data_path)
+                    msg = f'Resource does not exist: {data_path}'
                     LOGGER.error(msg)
                     raise ProviderNotFoundError(msg)
 
@@ -183,7 +184,7 @@ class HateoasProvider(BaseProvider):
         return content
 
     def __repr__(self):
-        return '<HateoasProvider> {}'.format(self.data)
+        return f'<HateoasProvider> {self.data}'
 
 
 def _get_json_data(jsonpath):

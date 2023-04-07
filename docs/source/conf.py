@@ -2,7 +2,7 @@
 #
 # Authors: Tom Kralidis <tomkralidis@gmail.com>
 #
-# Copyright (c) 2022 Tom Kralidis
+# Copyright (c) 2023 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -98,7 +98,7 @@ master_doc = 'index'
 project = 'pygeoapi'
 author = 'pygeoapi team'
 license = 'This work is licensed under a Creative Commons Attribution 4.0 International License'  # noqa
-copyright = '2018-2022, ' + author + ' ' + license
+copyright = '2018-2023, ' + author + ' ' + license
 
 today_fmt = '%Y-%m-%d'
 
@@ -107,7 +107,7 @@ today_fmt = '%Y-%m-%d'
 # built documents.
 #
 # The short X.Y version.
-version = '0.13.dev0'
+version = '0.15.dev0'
 # The full version, including alpha/beta/rc tags.
 release = version
 
@@ -152,7 +152,7 @@ html_static_path = ['_static']
 # to template names.
 #
 # This is required for the alabaster theme
-# refs: http://alabaster.readthedocs.io/en/latest/installation.html#sidebars
+# refs: https://alabaster.readthedocs.io/en/latest/installation.html#sidebars
 html_sidebars = {
     '**': [
         'relations.html',  # needs 'show_related': True theme option to display

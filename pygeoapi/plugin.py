@@ -2,7 +2,7 @@
 #
 # Authors: Tom Kralidis <tomkralidis@gmail.com>
 #
-# Copyright (c) 2021 Tom Kralidis
+# Copyright (c) 2023 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -30,6 +30,7 @@
 
 import importlib
 import logging
+from typing import Any
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,23 +38,26 @@ LOGGER = logging.getLogger(__name__)
 #: formatters and processes available
 PLUGINS = {
     'provider': {
+        'AzureBlobStorage': 'pygeoapi.provider.azure_.AzureBlobStorageProvider',  # noqa
         'CSV': 'pygeoapi.provider.csv_.CSVProvider',
         'Elasticsearch': 'pygeoapi.provider.elasticsearch_.ElasticsearchProvider',  # noqa
         'ElasticsearchCatalogue': 'pygeoapi.provider.elasticsearch_.ElasticsearchCatalogueProvider',  # noqa
         'ESRI': 'pygeoapi.provider.esri.ESRIServiceProvider',
+        'FileSystem': 'pygeoapi.provider.filesystem.FileSystemProvider',
         'GeoJSON': 'pygeoapi.provider.geojson.GeoJSONProvider',
+        'Hateoas': 'pygeoapi.provider.hateoas.HateoasProvider',
+        'MapScript': 'pygeoapi.provider.mapscript_.MapScriptProvider',
+        'MongoDB': 'pygeoapi.provider.mongo.MongoProvider',
+        'MVT': 'pygeoapi.provider.mvt.MVTProvider',
         'OGR': 'pygeoapi.provider.ogr.OGRProvider',
         'PostgreSQL': 'pygeoapi.provider.postgresql.PostgreSQLProvider',
-        'SQLiteGPKG': 'pygeoapi.provider.sqlite.SQLiteGPKGProvider',
-        'MongoDB': 'pygeoapi.provider.mongo.MongoProvider',
-        'FileSystem': 'pygeoapi.provider.filesystem.FileSystemProvider',
-        'Hateoas': 'pygeoapi.provider.hateoas.HateoasProvider',
         'rasterio': 'pygeoapi.provider.rasterio_.RasterioProvider',
-        'xarray': 'pygeoapi.provider.xarray_.XarrayProvider',
-        'MVT': 'pygeoapi.provider.mvt.MVTProvider',
-        'TinyDBCatalogue': 'pygeoapi.provider.tinydb_.TinyDBCatalogueProvider',
         'SensorThings': 'pygeoapi.provider.sensorthings.SensorThingsProvider',
+        'SQLiteGPKG': 'pygeoapi.provider.sqlite.SQLiteGPKGProvider',
         'Socrata': 'pygeoapi.provider.socrata.SODAServiceProvider',
+        'TinyDBCatalogue': 'pygeoapi.provider.tinydb_.TinyDBCatalogueProvider',
+        'WMSFacade': 'pygeoapi.provider.wms_facade.WMSFacadeProvider',
+        'xarray': 'pygeoapi.provider.xarray_.XarrayProvider',
         'xarray-edr': 'pygeoapi.provider.xarray_edr.XarrayEDRProvider'
     },
     'formatter': {
@@ -64,12 +68,13 @@ PLUGINS = {
     },
     'process_manager': {
         'Dummy': 'pygeoapi.process.manager.dummy.DummyManager',
+        'MongoDB': 'pygeoapi.process.manager.mongodb_.MongoDBManager',
         'TinyDB': 'pygeoapi.process.manager.tinydb_.TinyDBManager'
     }
 }
 
 
-def load_plugin(plugin_type, plugin_def):
+def load_plugin(plugin_type: str, plugin_def: dict) -> Any:
     """
     loads plugin by name
 
@@ -82,16 +87,16 @@ def load_plugin(plugin_type, plugin_def):
     name = plugin_def['name']
 
     if plugin_type not in PLUGINS.keys():
-        msg = 'Plugin type {} not found'.format(plugin_type)
+        msg = f'Plugin type {plugin_type} not found'
         LOGGER.exception(msg)
         raise InvalidPluginError(msg)
 
     plugin_list = PLUGINS[plugin_type]
 
-    LOGGER.debug('Plugins: {}'.format(plugin_list))
+    LOGGER.debug(f'Plugins: {plugin_list}')
 
     if '.' not in name and name not in plugin_list.keys():
-        msg = 'Plugin {} not found'.format(name)
+        msg = f'Plugin {name} not found'
         LOGGER.exception(msg)
         raise InvalidPluginError(msg)
 
@@ -100,8 +105,8 @@ def load_plugin(plugin_type, plugin_def):
     else:  # core formatter
         packagename, classname = plugin_list[name].rsplit('.', 1)
 
-    LOGGER.debug('package name: {}'.format(packagename))
-    LOGGER.debug('class name: {}'.format(classname))
+    LOGGER.debug(f'package name: {packagename}')
+    LOGGER.debug(f'class name: {classname}')
 
     module = importlib.import_module(packagename)
     class_ = getattr(module, classname)

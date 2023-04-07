@@ -4,10 +4,12 @@
 #          Tom Kralidis <tomkralidis@gmail.com>
 #          John A Stevenson <jostev@bgs.ac.uk>
 #          Colin Blackburn <colb@bgs.ac.uk>
+#          Francesco Bartoli <xbartolone@gmail.com>
 #
 # Copyright (c) 2019 Just van den Broecke
-# Copyright (c) 2019 Tom Kralidis
+# Copyright (c) 2023 Tom Kralidis
 # Copyright (c) 2022 John A Stevenson and Colin Blackburn
+# Copyright (c) 2023 Francesco Bartoli
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -36,9 +38,14 @@
 # See pygeoapi/provider/postgresql.py for instructions on setting up
 # test database in Docker
 
+import os
+import json
 import pytest
+from http import HTTPStatus
 
 from pygeofilter.parsers.ecql import parse
+
+from pygeoapi.api import API
 
 from pygeoapi.provider.base import (
     ProviderConnectionError,
@@ -48,7 +55,10 @@ from pygeoapi.provider.base import (
 from pygeoapi.provider.postgresql import PostgreSQLProvider
 import pygeoapi.provider.postgresql as postgresql_provider_module
 
-import os
+from pygeoapi.util import yaml_load
+
+from .util import get_test_file_path, mock_request
+
 PASSWORD = os.environ.get('POSTGRESQL_PASSWORD', 'postgres')
 
 
@@ -69,17 +79,25 @@ def config():
     }
 
 
+# API using PostgreSQL provider
+@pytest.fixture()
+def pg_api_():
+    with open(get_test_file_path('pygeoapi-test-config-postgresql.yml')) as fh:
+        config = yaml_load(fh)
+        return API(config)
+
+
 def test_query(config):
     """Testing query for a valid JSON object with geometry"""
     p = PostgreSQLProvider(config)
     feature_collection = p.query()
-    assert feature_collection.get('type', None) == 'FeatureCollection'
-    features = feature_collection.get('features', None)
+    assert feature_collection.get('type') == 'FeatureCollection'
+    features = feature_collection.get('features')
     assert features is not None
     feature = features[0]
-    properties = feature.get('properties', None)
+    properties = feature.get('properties')
     assert properties is not None
-    geometry = feature.get('geometry', None)
+    geometry = feature.get('geometry')
     assert geometry is not None
 
 
@@ -97,22 +115,24 @@ def test_query_with_property_filter(config):
     """Test query valid features when filtering by property"""
     p = PostgreSQLProvider(config)
     feature_collection = p.query(properties=[("waterway", "stream")])
-    features = feature_collection.get('features', None)
+    features = feature_collection.get('features')
     stream_features = list(
         filter(lambda feature: feature['properties']['waterway'] == 'stream',
                features))
-    assert (len(features) == len(stream_features))
+    assert len(features) == len(stream_features)
 
     feature_collection = p.query(limit=50)
-    features = feature_collection.get('features', None)
+    features = feature_collection.get('features')
     stream_features = list(
         filter(lambda feature: feature['properties']['waterway'] == 'stream',
                features))
     other_features = list(
         filter(lambda feature: feature['properties']['waterway'] != 'stream',
                features))
-    assert (len(features) != len(stream_features))
-    assert (len(other_features) != 0)
+    assert len(features) != len(stream_features)
+    assert len(other_features) != 0
+    assert feature_collection['numberMatched'] == 14776
+    assert feature_collection['numberReturned'] == 50
 
 
 def test_query_with_config_properties(config):
@@ -127,7 +147,7 @@ def test_query_with_config_properties(config):
     assert provider.properties == properties_subset
     result = provider.query()
     feature = result.get('features')[0]
-    properties = feature.get('properties', None)
+    properties = feature.get('properties')
     for property_name in properties.keys():
         assert property_name in config["properties"]
 
@@ -207,6 +227,22 @@ def test_get_simple(config, id_, prev, next_):
     assert result['next'] == next_
 
 
+def test_get_with_config_properties(config):
+    """
+    Test that get is restricted by properties in the config.
+    No properties should be returned that are not requested.
+    Note that not all requested properties have to exist in the query result.
+    """
+    properties_subset = ['name', 'waterway', 'width', 'does_not_exist']
+    config.update({'properties': properties_subset})
+    provider = PostgreSQLProvider(config)
+    assert provider.properties == properties_subset
+    result = provider.get(80835483)
+    properties = result.get('properties')
+    for property_name in properties.keys():
+        assert property_name in config["properties"]
+
+
 def test_get_not_existing_item_raise_exception(config):
     """Testing query for a not existing object"""
     p = PostgreSQLProvider(config)
@@ -240,9 +276,9 @@ def test_query_cql(config, cql, expected_ids):
     provider = PostgreSQLProvider(config)
 
     feature_collection = provider.query(filterq=ast)
-    assert feature_collection.get('type', None) == 'FeatureCollection'
+    assert feature_collection.get('type') == 'FeatureCollection'
 
-    features = feature_collection.get('features', None)
+    features = feature_collection.get('features')
     ids = [feature["id"] for feature in features]
     assert ids == expected_ids
 
@@ -306,7 +342,7 @@ def test_instantiation(config):
     ({'table': 'bad_table'}, ProviderQueryError,
      'Table.*not found in schema.*'),
     ({'data': {'bad': 'data'}}, ProviderConnectionError,
-     r'Could not connect to .*None:\*\*\*@'),
+     r'Could not connect to postgresql\+psycopg2:\/\/:5432 \(password hidden\).'), # noqa
     ({'id_field': 'bad_id'}, ProviderQueryError,
      r'No such id_field column \(bad_id\) on osm.hotosm_bdi_waterways.'),
 ])
@@ -359,3 +395,192 @@ def test_engine_and_table_model_stores(config):
     provider3 = PostgreSQLProvider(different_host)
     assert provider3._engine is not provider0._engine
     assert provider3.table_model is not provider0.table_model
+
+
+# START: EXTERNAL API TESTS
+def test_get_collection_items_postgresql_cql(pg_api_):
+    """
+    Test for PostgreSQL CQL - requires local PostgreSQL with appropriate
+    data.  See pygeoapi/provider/postgresql.py for details.
+    """
+    # Arrange
+    cql_query = 'osm_id BETWEEN 80800000 AND 80900000 AND name IS NULL'
+    expected_ids = [80835474, 80835483]
+
+    # Act
+    req = mock_request({
+        'filter-lang': 'cql-text',
+        'filter': cql_query
+    })
+    rsp_headers, code, response = pg_api_.get_collection_items(
+        req, 'hot_osm_waterways')
+
+    # Assert
+    assert code == HTTPStatus.OK
+    features = json.loads(response)
+    ids = [item['id'] for item in features['features']]
+    assert ids == expected_ids
+
+    # Act, no filter-lang
+    req = mock_request({
+        'filter': cql_query
+    })
+    rsp_headers, code, response = pg_api_.get_collection_items(
+        req, 'hot_osm_waterways')
+
+    # Assert
+    assert code == HTTPStatus.OK
+    features = json.loads(response)
+    ids = [item['id'] for item in features['features']]
+    assert ids == expected_ids
+
+
+def test_get_collection_items_postgresql_cql_invalid_filter_language(pg_api_):
+    """
+    Test for PostgreSQL CQL - requires local PostgreSQL with appropriate
+    data.  See pygeoapi/provider/postgresql.py for details.
+
+    Test for invalid filter language
+    """
+    # Arrange
+    cql_query = 'osm_id BETWEEN 80800000 AND 80900000 AND name IS NULL'
+
+    # Act
+    req = mock_request({
+        'filter-lang': 'cql-json',  # Only cql-text is valid for GET
+        'filter': cql_query
+    })
+    rsp_headers, code, response = pg_api_.get_collection_items(
+        req, 'hot_osm_waterways')
+
+    # Assert
+    assert code == HTTPStatus.BAD_REQUEST
+    error_response = json.loads(response)
+    assert error_response['code'] == 'InvalidParameterValue'
+    assert error_response['description'] == 'Invalid filter language'
+
+
+@pytest.mark.parametrize("bad_cql", [
+    'id IN (1, ~)',
+    'id EATS (1, 2)',  # Valid CQL relations only
+    'id IN (1, 2'  # At some point this may return UnexpectedEOF
+])
+def test_get_collection_items_postgresql_cql_bad_cql(pg_api_, bad_cql):
+    """
+    Test for PostgreSQL CQL - requires local PostgreSQL with appropriate
+    data.  See pygeoapi/provider/postgresql.py for details.
+
+    Test for bad cql
+    """
+    # Act
+    req = mock_request({
+        'filter': bad_cql
+    })
+    rsp_headers, code, response = pg_api_.get_collection_items(
+        req, 'hot_osm_waterways')
+
+    # Assert
+    assert code == HTTPStatus.BAD_REQUEST
+    error_response = json.loads(response)
+    assert error_response['code'] == 'InvalidParameterValue'
+    assert error_response['description'] == f'Bad CQL string : {bad_cql}'
+
+
+def test_post_collection_items_postgresql_cql(pg_api_):
+    """
+    Test for PostgreSQL CQL - requires local PostgreSQL with appropriate
+    data.  See pygeoapi/provider/postgresql.py for details.
+    """
+    # Arrange
+    cql = {"and": [{"between": {"value": {"property": "osm_id"},
+                                "lower": 80800000,
+                                "upper": 80900000}},
+                   {"isNull": {"property": "name"}}]}
+    # werkzeug requests use a value of CONTENT_TYPE 'application/json'
+    # to create Content-Type in the Request object. So here we need to
+    # overwrite the default CONTENT_TYPE with the required one.
+    headers = {'CONTENT_TYPE': 'application/query-cql-json'}
+    expected_ids = [80835474, 80835483]
+
+    # Act
+    req = mock_request({
+        'filter-lang': 'cql-json'
+    }, data=cql, **headers)
+    rsp_headers, code, response = pg_api_.post_collection_items(
+        req, 'hot_osm_waterways')
+
+    # Assert
+    assert code == HTTPStatus.OK
+    features = json.loads(response)
+    ids = [item['id'] for item in features['features']]
+    assert ids == expected_ids
+
+
+def test_post_collection_items_postgresql_cql_invalid_filter_language(pg_api_):
+    """
+    Test for PostgreSQL CQL - requires local PostgreSQL with appropriate
+    data.  See pygeoapi/provider/postgresql.py for details.
+
+    Test for invalid filter language
+    """
+    # Arrange
+    # CQL should never be parsed
+    cql = {"in": {"value": {"property": "id"}, "list": [1, 2]}}
+    headers = {'CONTENT_TYPE': 'application/query-cql-json'}
+
+    # Act
+    req = mock_request({
+        'filter-lang': 'cql-text'  # Only cql-json is valid for POST
+    }, data=cql, **headers)
+    rsp_headers, code, response = pg_api_.post_collection_items(
+        req, 'hot_osm_waterways')
+
+    # Assert
+    assert code == HTTPStatus.BAD_REQUEST
+    error_response = json.loads(response)
+    assert error_response['code'] == 'InvalidParameterValue'
+    assert error_response['description'] == 'Invalid filter language'
+
+
+@pytest.mark.parametrize("bad_cql", [
+    # Valid CQL relations only
+    {"eats": {"value": {"property": "id"}, "list": [1, 2]}},
+    # At some point this may return UnexpectedEOF
+    '{"in": {"value": {"property": "id"}, "list": [1, 2}}'
+])
+def test_post_collection_items_postgresql_cql_bad_cql(pg_api_, bad_cql):
+    """
+    Test for PostgreSQL CQL - requires local PostgreSQL with appropriate
+    data.  See pygeoapi/provider/postgresql.py for details.
+
+    Test for bad cql
+    """
+    # Arrange
+    headers = {'CONTENT_TYPE': 'application/query-cql-json'}
+
+    # Act
+    req = mock_request({
+        'filter-lang': 'cql-json'
+    }, data=bad_cql, **headers)
+    rsp_headers, code, response = pg_api_.post_collection_items(
+        req, 'hot_osm_waterways')
+
+    # Assert
+    assert code == HTTPStatus.BAD_REQUEST
+    error_response = json.loads(response)
+    assert error_response['code'] == 'InvalidParameterValue'
+    assert error_response['description'].startswith('Bad CQL string')
+
+
+def test_get_collection_items_postgresql_automap_naming_conflicts(pg_api_):
+    """
+    Test that PostgreSQLProvider can handle naming conflicts when automapping
+    classes and relationships from database schema.
+    """
+    req = mock_request()
+    rsp_headers, code, response = pg_api_.get_collection_items(
+        req, 'dummy_naming_conflicts')
+
+    assert code == HTTPStatus.OK
+    features = json.loads(response).get('features')
+    assert len(features) == 0

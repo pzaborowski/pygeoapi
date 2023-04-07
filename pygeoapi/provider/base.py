@@ -61,11 +61,11 @@ class BaseProvider:
             raise RuntimeError('name/type/data are required')
 
         self.editable = provider_def.get('editable', False)
-        self.options = provider_def.get('options', None)
-        self.id_field = provider_def.get('id_field', None)
-        self.uri_field = provider_def.get('uri_field', None)
-        self.x_field = provider_def.get('x_field', None)
-        self.y_field = provider_def.get('y_field', None)
+        self.options = provider_def.get('options')
+        self.id_field = provider_def.get('id_field')
+        self.uri_field = provider_def.get('uri_field')
+        self.x_field = provider_def.get('x_field')
+        self.y_field = provider_def.get('y_field')
         self.time_field = provider_def.get('time_field')
         self.title_field = provider_def.get('title_field')
         self.properties = provider_def.get('properties', [])
@@ -131,7 +131,7 @@ class BaseProvider:
 
         raise NotImplementedError()
 
-    def get(self, identifier):
+    def get(self, identifier, **kwargs):
         """
         query the provider by id
 
@@ -195,6 +195,7 @@ class BaseProvider:
         raise NotImplementedError()
 
     def _load_and_prepare_item(self, item, identifier=None,
+                               accept_missing_identifier=False,
                                raise_if_exists=True):
         """
         Helper function to load a record, detect its idenfier and prepare
@@ -202,6 +203,9 @@ class BaseProvider:
 
         :param item: `str` of incoming item data
         :param identifier: `str` of item identifier (optional)
+        :param accept_missing_identifier: `bool` of whether a missing
+                                          identifier in item is valid
+                                          (typically for a create() method)
         :param raise_if_exists: `bool` of whether to check if record
                                  already exists
 
@@ -212,7 +216,7 @@ class BaseProvider:
         msg = None
 
         LOGGER.debug('Loading data')
-        LOGGER.debug('Data: {}'.format(item))
+        LOGGER.debug(f'Data: {item}')
         try:
             json_data = json.loads(item)
         except TypeError as err:
@@ -238,7 +242,7 @@ class BaseProvider:
                 except KeyError:
                     LOGGER.debug('Cannot find properties.identifier')
 
-        if identifier2 is None:
+        if identifier2 is None and not accept_missing_identifier:
             msg = 'Missing identifier (id or properties.identifier)'
             LOGGER.error(msg)
             raise ProviderInvalidDataError(msg)
@@ -248,7 +252,7 @@ class BaseProvider:
             LOGGER.error(msg)
             raise ProviderInvalidDataError(msg)
 
-        if raise_if_exists:
+        if identifier2 is not None and raise_if_exists:
             LOGGER.debug('Querying database whether item exists')
             try:
                 _ = self.get(identifier2)
@@ -262,7 +266,7 @@ class BaseProvider:
         return identifier2, json_data
 
     def __repr__(self):
-        return '<BaseProvider> {}'.format(self.type)
+        return f'<BaseProvider> {self.type}'
 
 
 class ProviderGenericError(Exception):
@@ -312,4 +316,9 @@ class ProviderVersionError(ProviderGenericError):
 
 class ProviderInvalidDataError(ProviderGenericError):
     """provider invalid data error"""
+    pass
+
+
+class ProviderRequestEntityTooLargeError(ProviderGenericError):
+    """provider request entity too large error"""
     pass

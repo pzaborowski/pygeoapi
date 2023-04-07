@@ -18,8 +18,8 @@ parameters.
    :header: Provider, properties (filters), resulttype, q, bbox, datetime, sortby, properties (display), transactions
    :align: left
 
-   ElasticsearchCatalogue,✅,results/hits,✅,✅,✅,✅,❌
-   TinyDBCatalogue,✅,results/hits,✅,✅,✅,✅,✅
+   `ElasticsearchCatalogue`_,✅,results/hits,✅,✅,✅,✅,❌
+   `TinyDBCatalogue`_,✅,results/hits,✅,✅,✅,✅,✅
 
 
 Below are specific connection examples based on supported providers.
@@ -29,9 +29,11 @@ Connection examples
 
 ElasticsearchCatalogue
 ^^^^^^^^^^^^^^^^^^^^^^
+.. note::
+   Requires Python packages elasticsearch and elasticsearch-dsl
 
 .. note::
-   Elasticsearch 7 or greater is supported.
+   Elasticsearch 8 or greater is supported.
 
 
 To publish an Elasticsearch index, the following are required in your index:
@@ -52,8 +54,7 @@ TinyDBCatalogue
 ^^^^^^^^^^^^^^^
 
 .. note::
-   Elasticsearch 7 or greater is supported.
-
+   Requires Python package tinydb
 
 To publish a TinyDB index, the following are required in your index:
 
@@ -96,5 +97,9 @@ Metadata search examples
 * fetch a specific record
   * http://localhost:5000/collections/my-metadata/items/123
 
-.. _`OGC API - Records`: https://www.ogc.org/standards/ogcapi-records
+.. note::
+   provider `id_field` values support slashes (i.e. ``my/cool/identifier``). The client request would then
+   be responsible for encoding the identifier accordingly (i.e. ``http://localhost:5000/collections/my-metadata/items/my%2Fcool%2Fidentifier``)
+
+.. _`OGC API - Records`: https://ogcapi.ogc.org/records
 .. _`OGC API - Records GeoJSON Features`: https://raw.githubusercontent.com/opengeospatial/ogcapi-records/master/core/openapi/schemas/recordGeoJSON.yaml

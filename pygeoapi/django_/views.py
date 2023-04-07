@@ -147,6 +147,44 @@ def collection_items(request: HttpRequest, collection_id: str) -> HttpResponse:
             else:
                 response_ = _feed_response(request, 'post_collection_items',
                                            request, collection_id)
+    elif request.method == 'OPTIONS':
+        response_ = _feed_response(request, 'manage_collection_item',
+                                   request, 'options', collection_id)
+
+    response = _to_django_response(*response_)
+
+    return response
+
+
+def collection_map(request: HttpRequest, collection_id: str):
+    """
+    OGC API - Maps map render endpoint
+
+    :param collection_id: collection identifier
+
+    :returns: HTTP response
+    """
+
+    response_ = _feed_response(request, 'get_collection_map', collection_id)
+
+    response = _to_django_response(*response_)
+
+    return response
+
+
+def collection_style_map(request: HttpRequest, collection_id: str,
+                         style_id: str = None):
+    """
+    OGC API - Maps map render endpoint
+
+    :param collection_id: collection identifier
+    :param collection_id: style identifier
+
+    :returns: HTTP response
+    """
+
+    response_ = _feed_response(request, 'get_collection_map',
+                               collection_id, style_id)
 
     response = _to_django_response(*response_)
 
@@ -179,6 +217,10 @@ def collection_item(request: HttpRequest,
             request, 'manage_collection_item', request, 'delete',
             collection_id, item_id
         )
+    elif request.method == 'OPTIONS':
+        response_ = _feed_response(
+            request, 'manage_collection_item', request, 'options',
+            collection_id, item_id)
 
     response = _to_django_response(*response_)
 

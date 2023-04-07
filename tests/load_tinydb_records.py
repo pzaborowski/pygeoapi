@@ -2,7 +2,7 @@
 #
 # Authors: Tom Kralidis <tomkralidis@gmail.com>
 #
-# Copyright (c) 2022 Tom Kralidis
+# Copyright (c) 2023 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -28,8 +28,7 @@
 # =================================================================
 
 from datetime import datetime
-from glob import glob
-import os
+from pathlib import Path
 import sys
 from typing import Union
 
@@ -39,14 +38,14 @@ from tinydb import TinyDB
 
 
 if len(sys.argv) < 3:
-    print('Usage: {} <path/to/xml-files> <output.db>'.format(sys.argv[0]))
+    print(f'Usage: {sys.argv[0]} <path/to/xml-files> <output.db>')
     sys.exit(1)
 
-xml_dir = sys.argv[1]
-index_name = sys.argv[2]
+xml_dir = Path(sys.argv[1])
+index_name = Path(sys.argv[2])
 
-if os.path.exists(index_name):
-    os.remove(index_name)
+if index_name.exists():
+    index_name.unlink()
 
 db = TinyDB(index_name)
 
@@ -64,26 +63,31 @@ def contact2party(ci: CI_ResponsibleParty) -> dict:
     party = {
         'contactInfo': {
             'address': {
-                'main': {}
+                'office': {}
             }
         }
     }
 
     party['name'] = ci.name or ci.position
+
     if ci.phone:
-        party['contactInfo']['phone'] = ci.phone
+        party['contactInfo']['phone'] = {
+            'office': ci.phone
+        }
     if ci.email:
-        party['contactInfo']['email'] = ci.email
+        party['contactInfo']['email'] = {
+            'office': ci.email
+        }
     if ci.address:
-        party['contactInfo']['address']['main']['deliveryPoint'] = ci.address
+        party['contactInfo']['address']['office']['deliveryPoint'] = ci.address
     if ci.city:
-        party['contactInfo']['address']['main']['city'] = ci.city
+        party['contactInfo']['address']['office']['city'] = ci.city
     if ci.region:
-        party['contactInfo']['address']['main']['administrativeArea'] = ci.region  # noqa
+        party['contactInfo']['address']['office']['administrativeArea'] = ci.region  # noqa
     if ci.postcode:
-        party['contactInfo']['address']['main']['postalCode'] = ci.postcode
+        party['contactInfo']['address']['office']['postalCode'] = ci.postcode
     if ci.country:
-        party['contactInfo']['address']['main']['country'] = ci.country
+        party['contactInfo']['address']['office']['country'] = ci.country
     if ci.onlineresource:
         party['contactInfo']['url'] = {
             'href': ci.onlineresource.url,
@@ -124,8 +128,9 @@ def get_anytext(bag: Union[list, str]) -> str:
     return ' '.join(text_bag)
 
 
-for xml_file in glob('{}/*.xml'.format(xml_dir)):
-    m = MD_Metadata(etree.parse(xml_file))
+for xml_file in xml_dir.glob('*.xml'):
+    print(xml_file)
+    m = MD_Metadata(etree.parse(str(xml_file)))
 
     _raw_metadata = m.xml.decode('utf-8')
     _anytext = get_anytext(_raw_metadata)
@@ -192,6 +197,7 @@ for xml_file in glob('{}/*.xml'.format(xml_dir)):
             'http://www.opengis.net/spec/ogcapi-records-1/1.0/req/record-core'
         ],
         'type': 'Feature',
+        'time': [te_begin, te_end],
         'geometry': {
             'type': 'Polygon',
             'coordinates': [[
@@ -203,8 +209,8 @@ for xml_file in glob('{}/*.xml'.format(xml_dir)):
             ]]
         },
         'properties': {
-            'recordCreated': issued,
-            'recordUpdated': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'created': issued,
+            'updated': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
             'type': type_,
             'title': title,
             'description': description,
@@ -214,16 +220,6 @@ for xml_file in glob('{}/*.xml'.format(xml_dir)):
                 'value': identifier
             }],
             'themes': themes,
-            'extent': {
-                'spatial': {
-                    'bbox': [bbox],
-                    'crs': bbox_crs
-                },
-                'temporal': {
-                    'interval': [te_begin, te_end],
-                    'trs': 'http://www.opengis.net/def/uom/ISO-8601/0/Gregorian'  # noqa
-                }
-            },
             '_metadata-anytext': _anytext
         },
         'links': links
@@ -231,7 +227,6 @@ for xml_file in glob('{}/*.xml'.format(xml_dir)):
 
     try:
         res = db.insert(json_record)
-        print('Metadata record {} loaded with internal id {}'.format(
-            xml_file, res))
+        print(f'Metadata record {xml_file} loaded with internal id {res}')
     except Exception as err:
         print(err)

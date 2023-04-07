@@ -3,7 +3,7 @@
 # Authors: Matthew Perry <perrygeo@gmail.com>
 #
 # Copyright (c) 2018 Matthew Perry
-# Copyright (c) 2021 Tom Kralidis
+# Copyright (c) 2022 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -81,10 +81,17 @@ class GeoJSONProvider(BaseProvider):
         if os.path.exists(self.data):
             with open(self.data) as src:
                 data = json.loads(src.read())
-            for f in data['features'][0]['properties'].keys():
-                fields[f] = {'type': 'string'}
+            for key, value in data['features'][0]['properties'].items():
+                if isinstance(value, float):
+                    type_ = 'number'
+                elif isinstance(value, int):
+                    type_ = 'integer'
+                else:
+                    type_ = 'string'
+
+                fields[key] = {'type': type_}
         else:
-            LOGGER.warning('File {} does not exist.'.format(self.data))
+            LOGGER.warning(f'File {self.data} does not exist.')
         return fields
 
     def _load(self, skip_geometry=None, properties=[], select_properties=[]):
@@ -99,7 +106,7 @@ class GeoJSONProvider(BaseProvider):
             with open(self.data) as src:
                 data = json.loads(src.read())
         else:
-            LOGGER.warning('File {} does not exist.'.format(self.data))
+            LOGGER.warning(f'File {self.data} does not exist.')
             data = {
                 'type': 'FeatureCollection',
                 'features': []}
@@ -171,7 +178,7 @@ class GeoJSONProvider(BaseProvider):
             if str(feature.get('id')) == identifier:
                 return feature
         # default, no match
-        err = 'item {} not found'.format(identifier)
+        err = f'item {identifier} not found'
         LOGGER.error(err)
         raise ProviderItemNotFoundError(err)
 
@@ -230,4 +237,4 @@ class GeoJSONProvider(BaseProvider):
             dst.write(json.dumps(all_data))
 
     def __repr__(self):
-        return '<GeoJSONProvider> {}'.format(self.data)
+        return f'<GeoJSONProvider> {self.data}'

@@ -4,7 +4,7 @@
 #          Tom Kralidis <tomkralidis@gmail.com>
 #
 # Copyright (c) 2019 Just van den Broecke
-# Copyright (c) 2019 Tom Kralidis
+# Copyright (c) 2023 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -38,13 +38,15 @@ import pytest
 from pygeoapi.provider.base import ProviderItemNotFoundError
 from pygeoapi.provider.sqlite import SQLiteGPKGProvider
 
+from .util import get_test_file_path
+
 
 @pytest.fixture()
 def config_sqlite():
     return {
         'name': 'SQLiteGPKG',
         'type': 'feature',
-        'data': './tests/data/ne_110m_admin_0_countries.sqlite',
+        'data': get_test_file_path('data/ne_110m_admin_0_countries.sqlite'),
         'id_field': 'ogc_fid',
         'table': 'ne_110m_admin_0_countries'
     }
@@ -55,10 +57,22 @@ def config_geopackage():
     return {
         'name': 'SQLiteGPKG',
         'type': 'feature',
-        'data': './tests/data/poi_portugal.gpkg',
+        'data': get_test_file_path('data/poi_portugal.gpkg'),
         'id_field': 'osm_id',
         'table': 'poi_portugal'
     }
+
+
+def test_get_fields_sqlite(config_sqlite):
+    """Testing field definitions for sqlite3"""
+
+    fields_expected = {
+        'ogc_fid': {'type': 'number'},
+        'scalerank': {'type': 'number'}
+    }
+
+    p = SQLiteGPKGProvider(config_sqlite)
+    assert p.get_fields() == fields_expected
 
 
 def test_query_sqlite(config_sqlite):
@@ -66,14 +80,29 @@ def test_query_sqlite(config_sqlite):
 
     p = SQLiteGPKGProvider(config_sqlite)
     feature_collection = p.query()
-    assert feature_collection.get('type', None) == 'FeatureCollection'
-    features = feature_collection.get('features', None)
+    assert feature_collection.get('type') == 'FeatureCollection'
+    features = feature_collection.get('features')
     assert features is not None
     feature = features[0]
-    properties = feature.get('properties', None)
+    properties = feature.get('properties')
     assert properties is not None
-    geometry = feature.get('geometry', None)
+    geometry = feature.get('geometry')
     assert geometry is not None
+
+
+def test_get_fields_geopackage(config_geopackage):
+    """Testing field definitions for geopackage"""
+
+    fields_expected = {
+        'fclass': {'type': 'string'},
+        'fid': {'type': 'number'},
+        'gid': {'type': 'number'},
+        'name': {'type': 'string'},
+        'osm_id': {'type': 'number'}
+    }
+
+    p = SQLiteGPKGProvider(config_geopackage)
+    assert p.get_fields() == fields_expected
 
 
 def test_query_geopackage(config_geopackage):
@@ -81,13 +110,13 @@ def test_query_geopackage(config_geopackage):
 
     p = SQLiteGPKGProvider(config_geopackage)
     feature_collection = p.query()
-    assert feature_collection.get('type', None) == 'FeatureCollection'
-    features = feature_collection.get('features', None)
+    assert feature_collection.get('type') == 'FeatureCollection'
+    features = feature_collection.get('features')
     assert features is not None
     feature = features[0]
-    properties = feature.get('properties', None)
+    properties = feature.get('properties')
     assert properties is not None
-    geometry = feature.get('geometry', None)
+    geometry = feature.get('geometry')
     assert geometry is not None
 
 
@@ -109,7 +138,7 @@ def test_query_with_property_filter_sqlite_geopackage(config_sqlite):
     p = SQLiteGPKGProvider(config_sqlite)
     feature_collection = p.query(properties=[
         ("continent", "Europe")], limit=100)
-    features = feature_collection.get('features', None)
+    features = feature_collection.get('features')
     assert len(features) == 39
 
 
@@ -118,7 +147,7 @@ def test_query_with_property_filter_bbox_sqlite_geopackage(config_sqlite):
     p = SQLiteGPKGProvider(config_sqlite)
     feature_collection = p.query(properties=[("continent", "Europe")],
                                  bbox=[29.3373, -3.4099, 29.3761, -3.3924])
-    features = feature_collection.get('features', None)
+    features = feature_collection.get('features')
     assert len(features) == 0
 
 
@@ -175,4 +204,4 @@ def test_get_geopackage_skip_geometry(config_geopackage):
 
     feature_collection = p.query(skip_geometry=True)
     for feature in feature_collection['features']:
-        assert feature['geomtry'] is None
+        assert feature['geometry'] is None

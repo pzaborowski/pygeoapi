@@ -2,7 +2,7 @@
 #
 # Authors: Tom Kralidis <tomkralidis@gmail.com>
 #
-# Copyright (c) 2020 Tom Kralidis
+# Copyright (c) 2023 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -32,11 +32,10 @@ import io
 from json import loads
 import logging
 import os
-from urllib.parse import urljoin
 
 from pygeoapi.provider.base import (BaseProvider, ProviderConnectionError,
                                     ProviderNotFoundError)
-from pygeoapi.util import file_modified_iso8601, get_path_basename
+from pygeoapi.util import file_modified_iso8601, get_path_basename, url_join
 
 LOGGER = logging.getLogger(__name__)
 
@@ -56,7 +55,7 @@ class FileSystemProvider(BaseProvider):
         super().__init__(provider_def)
 
         if not os.path.exists(self.data):
-            msg = 'Directory does not exist: {}'.format(self.data)
+            msg = f'Directory does not exist: {self.data}'
             LOGGER.error(msg)
             raise ProviderConnectionError(msg)
 
@@ -83,10 +82,10 @@ class FileSystemProvider(BaseProvider):
         if '/' not in dirpath:  # root
             root_link = baseurl
         else:
-            parentpath = urljoin(thispath, '.')
+            parentpath = url_join(thispath, '.')
             child_links.append({
                 'rel': 'parent',
-                'href': '{}?f=json'.format(parentpath),
+                'href': f'{parentpath}?f=json',
                 'type': 'application/json'
             })
             child_links.append({
@@ -97,12 +96,12 @@ class FileSystemProvider(BaseProvider):
 
             depth = dirpath.count('/')
             root_path = '/'.replace('/', '../' * depth, 1)
-            root_link = urljoin(thispath, root_path)
+            root_link = url_join(thispath, root_path)
 
         content = {
             'links': [{
                 'rel': 'root',
-                'href': '{}?f=json'.format(root_link),
+                'href': f'{root_link}?f=json',
                 'type': 'application/json'
                 }, {
                 'rel': 'root',
@@ -110,7 +109,7 @@ class FileSystemProvider(BaseProvider):
                 'type': 'text/html'
                 }, {
                 'rel': 'self',
-                'href': '{}?f=json'.format(thispath),
+                'href': f'{thispath}?f=json',
                 'type': 'application/json',
                 }, {
                 'rel': 'self',
@@ -128,14 +127,14 @@ class FileSystemProvider(BaseProvider):
         else:
             LOGGER.debug('Checking if path exists as file via file_types')
             for ft in self.file_types:
-                tmp_path = '{}{}'.format(data_path, ft)
+                tmp_path = f'{data_path}{ft}'
                 if os.path.exists(tmp_path):
                     resource_type = 'file'
                     data_path = tmp_path
                     break
 
         if resource_type is None:
-            msg = 'Resource does not exist: {}'.format(data_path)
+            msg = f'Resource does not exist: {data_path}'
             LOGGER.error(msg)
             raise ProviderNotFoundError(msg)
 
@@ -158,11 +157,6 @@ class FileSystemProvider(BaseProvider):
 
                 if os.path.isdir(fullpath):
                     newpath = os.path.join(baseurl, urlpath, dc)
-#                    child_links.append({
-#                        'rel': 'child',
-#                        'href': '{}?f=json'.format(newpath),
-#                        'type': 'application/json'
-#                    })
                     child_links.append({
                         'rel': 'child',
                         'href': newpath,
@@ -173,7 +167,7 @@ class FileSystemProvider(BaseProvider):
                 elif os.path.isfile(fullpath):
                     basename, extension = os.path.splitext(dc)
                     newpath = os.path.join(baseurl, urlpath, basename)
-                    newpath2 = '{}{}'.format(newpath, extension)
+                    newpath2 = f'{newpath}{extension}'
                     if extension in self.file_types:
                         fullpath = os.path.join(data_path, dc)
                         child_links.append({
@@ -184,14 +178,6 @@ class FileSystemProvider(BaseProvider):
                             'file:size': filesize,
                             'entry:type': 'Item'
                         })
-#                        child_links.append({
-#                            'rel': 'item',
-#                            'title': get_path_basename(newpath2),
-#                            'href': newpath,
-#                            'type': 'text/html',
-#                            'created': filectime,
-#                            'file:size': filesize
-#                        })
 
         elif resource_type == 'file':
             filename = os.path.basename(data_path)
@@ -199,7 +185,7 @@ class FileSystemProvider(BaseProvider):
             id_ = os.path.splitext(filename)[0]
             if urlpath:
                 filename = filename.replace(id_, '')
-            url = '{}/{}{}'.format(baseurl, urlpath, filename)
+            url = f'{baseurl}/{urlpath}{filename}'
 
             filectime = file_modified_iso8601(data_path)
             filesize = os.path.getsize(data_path)
@@ -225,7 +211,7 @@ class FileSystemProvider(BaseProvider):
         return content
 
     def __repr__(self):
-        return '<FileSystemProvider> {}'.format(self.data)
+        return f'<FileSystemProvider> {self.data}'
 
 
 def _describe_file(filepath):
@@ -245,7 +231,7 @@ def _describe_file(filepath):
         'properties': {}
     }
 
-    mcf_file = '{}.yml'.format(os.path.splitext(filepath)[0])
+    mcf_file = f'{os.path.splitext(filepath)[0]}.yml'
 
     if os.path.isfile(mcf_file):
         try:
@@ -260,9 +246,9 @@ def _describe_file(filepath):
         except ImportError:
             LOGGER.debug('pygeometa not found')
         except MCFReadError as err:
-            LOGGER.warning('MCF error: {}'.format(err))
+            LOGGER.warning(f'MCF error: {err}')
     else:
-        LOGGER.debug('No mcf found at: {}'.format(mcf_file))
+        LOGGER.debug(f'No mcf found at: {mcf_file}')
 
     if content['geometry'] is None and content['bbox'] is None:
         try:
@@ -285,7 +271,11 @@ def _describe_file(filepath):
             LOGGER.debug('Testing raster data detection')
             d = rasterio.open(filepath)
             scrs = CRS(d.crs)
-            if scrs.to_epsg() not in [None, 4326]:
+            LOGGER.debug(f'CRS: {d.crs}')
+            LOGGER.debug(f'bounds: {d.bounds}')
+            LOGGER.debug(f'Is geographic: {scrs.is_geographic}')
+            if not scrs.is_geographic:
+                LOGGER.debug('Reprojecting coordinates')
                 tcrs = CRS.from_epsg(4326)
                 bnds = transform_bounds(scrs, tcrs,
                                         d.bounds[0], d.bounds[1],
@@ -315,8 +305,14 @@ def _describe_file(filepath):
             try:
                 LOGGER.debug('Testing vector data detection')
                 d = fiona.open(filepath)
+                LOGGER.debug(f'CRS: {d.crs}')
+                LOGGER.debug(f'bounds: {d.bounds}')
                 scrs = CRS(d.crs)
-                if scrs.to_epsg() not in [None, 4326]:
+                LOGGER.debug(f'CRS: {d.crs}')
+                LOGGER.debug(f'bounds: {d.bounds}')
+                LOGGER.debug(f'Is geographic: {scrs.is_geographic}')
+                if not scrs.is_geographic:
+                    LOGGER.debug('Reprojecting coordinates')
                     tcrs = CRS.from_epsg(4326)
                     bnds = transform_bounds(scrs, tcrs,
                                             d.bounds[0], d.bounds[1],
@@ -350,15 +346,14 @@ def _describe_file(filepath):
                     id_ = os.path.splitext(os.path.basename(filepath))[0]
                     content['assets'] = {}
                     for suffix in ['shx', 'dbf', 'prj']:
-                        fullpath = '{}.{}'.format(
-                            os.path.splitext(filepath)[0], suffix)
+                        fullpath = f'{os.path.splitext(filepath)[0]}.{suffix}'
 
                         if os.path.exists(fullpath):
                             filectime = file_modified_iso8601(fullpath)
                             filesize = os.path.getsize(fullpath)
 
                             content['assets'][suffix] = {
-                                'href': './{}.{}'.format(id_, suffix),
+                                'href': f'./{id_}.{suffix}',
                                 'created': filectime,
                                 'file:size': filesize
                             }

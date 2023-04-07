@@ -5,10 +5,12 @@
 #          Mary Bucknell <mbucknell@usgs.gov>
 #          John A Stevenson <jostev@bgs.ac.uk>
 #          Colin Blackburn <colb@bgs.ac.uk>
+#          Francesco Bartoli <xbartolone@gmail.com>
 #
 # Copyright (c) 2018 Jorge Samuel Mendes de Jesus
-# Copyright (c) 2021 Tom Kralidis
+# Copyright (c) 2023 Tom Kralidis
 # Copyright (c) 2022 John A Stevenson and Colin Blackburn
+# Copyright (c) 2023 Francesco Bartoli
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -47,20 +49,23 @@
 #  psql -U postgres -h 127.0.0.1 -p 5432 test
 
 import logging
-from pygeoapi.provider.base import BaseProvider, \
-    ProviderConnectionError, ProviderQueryError, ProviderItemNotFoundError
 
+from copy import deepcopy
+from geoalchemy2 import Geometry  # noqa - this isn't used explicitly but is needed to process Geometry columns
+from geoalchemy2.functions import ST_MakeEnvelope
+from geoalchemy2.shape import to_shape
+from pygeofilter.backends.sqlalchemy.evaluate import to_filter
+import shapely
 from sqlalchemy import create_engine, MetaData, PrimaryKeyConstraint, asc, desc
+from sqlalchemy.engine import URL
 from sqlalchemy.exc import InvalidRequestError, OperationalError
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session, load_only
 from sqlalchemy.sql.expression import and_
-from geoalchemy2 import Geometry  # noqa - this isn't used explicitly but is needed to process Geometry columns
-from geoalchemy2.functions import ST_MakeEnvelope
-from pygeofilter.backends.sqlalchemy.evaluate import to_filter
 
-import shapely
-from geoalchemy2.shape import to_shape
+from pygeoapi.provider.base import BaseProvider, \
+    ProviderConnectionError, ProviderQueryError, ProviderItemNotFoundError
+
 
 _ENGINE_STORE = {}
 _TABLE_MODEL_STORE = {}
@@ -90,15 +95,15 @@ class PostgreSQLProvider(BaseProvider):
         self.id_field = provider_def['id_field']
         self.geom = provider_def.get('geom_field', 'geom')
 
-        LOGGER.debug('Name: {}'.format(self.name))
-        LOGGER.debug('Table: {}'.format(self.table))
-        LOGGER.debug('ID field: {}'.format(self.id_field))
-        LOGGER.debug('Geometry field: {}'.format(self.geom))
+        LOGGER.debug(f'Name: {self.name}')
+        LOGGER.debug(f'Table: {self.table}')
+        LOGGER.debug(f'ID field: {self.id_field}')
+        LOGGER.debug(f'Geometry field: {self.geom}')
 
         # Read table information from database
         self._store_db_parameters(provider_def['data'])
         self._engine, self.table_model = self._get_engine_and_table_model()
-        LOGGER.debug('DB connection: {}'.format(repr(self._engine.url)))
+        LOGGER.debug(f'DB connection: {repr(self._engine.url)}')
         self.fields = self.get_fields()
 
     def query(self, offset=0, limit=10, resulttype='results',
@@ -122,11 +127,10 @@ class PostgreSQLProvider(BaseProvider):
         :param q: full-text search term(s)
         :param filterq: CQL query as text string
 
-        :returns: GeoJSON FeaturesCollection
+        :returns: GeoJSON FeatureCollection
         """
-        LOGGER.debug('Querying PostGIS')
 
-        # Prepare filters
+        LOGGER.debug('Preparing filters')
         property_filters = self._get_property_filters(properties)
         cql_filters = self._get_cql_filters(filterq)
         bbox_filter = self._get_bbox_filter(bbox)
@@ -134,6 +138,7 @@ class PostgreSQLProvider(BaseProvider):
         selected_properties = self._select_properties_clause(select_properties,
                                                              skip_geometry)
 
+        LOGGER.debug('Querying PostGIS')
         # Execute query within self-closing database Session context
         with Session(self._engine) as session:
             results = (session.query(self.table_model)
@@ -144,25 +149,28 @@ class PostgreSQLProvider(BaseProvider):
                        .options(selected_properties)
                        .offset(offset))
 
-            # Prepare and return feature collection response
+            matched = results.count()
+            if limit < matched:
+                returned = limit
+            else:
+                returned = matched
+
+            LOGGER.debug(f'Found {matched} result(s)')
+
+            LOGGER.debug('Preparing response')
             response = {
                 'type': 'FeatureCollection',
-                'features': []
+                'features': [],
+                'numberMatched': matched,
+                'numberReturned': returned
             }
 
-            if resulttype == "hits":
-                # User requested hit count
-                response['numberMatched'] = results.count()
-                return response
-
-            if not results:
-                # Empty response
+            if resulttype == "hits" or not results:
+                response['numberReturned'] = 0
                 return response
 
             for item in results.limit(limit):
-                response['features'].append(
-                    self._sqlalchemy_to_feature(item)
-                )
+                response['features'].append(self._sqlalchemy_to_feature(item))
 
         return response
 
@@ -189,7 +197,7 @@ class PostgreSQLProvider(BaseProvider):
 
         :param identifier: feature id
 
-        :returns: GeoJSON FeaturesCollection
+        :returns: GeoJSON FeatureCollection
         """
         LOGGER.debug(f'Get item by ID: {identifier}')
 
@@ -202,6 +210,14 @@ class PostgreSQLProvider(BaseProvider):
                 msg = f"No such item: {self.id_field}={identifier}."
                 raise ProviderItemNotFoundError(msg)
             feature = self._sqlalchemy_to_feature(item)
+
+            # Drop non-defined properties
+            if self.properties:
+                props = feature['properties']
+                dropping_keys = deepcopy(props).keys()
+                for item in dropping_keys:
+                    if item not in self.properties:
+                        props.pop(item)
 
             # Add fields for previous and next items
             id_field = getattr(self.table_model, self.id_field)
@@ -241,11 +257,13 @@ class PostgreSQLProvider(BaseProvider):
         try:
             engine = _ENGINE_STORE[engine_store_key]
         except KeyError:
-            conn_str = (
-                'postgresql+psycopg2://'
-                f'{self.db_user}:{self._db_password}@'
-                f'{self.db_host}:{self.db_port}/'
-                f'{self.db_name}'
+            conn_str = URL.create(
+                'postgresql+psycopg2',
+                username=self.db_user,
+                password=self._db_password,
+                host=self.db_host,
+                port=self.db_port,
+                database=self.db_name
             )
             engine = create_engine(
                 conn_str,
@@ -301,10 +319,30 @@ class PostgreSQLProvider(BaseProvider):
             raise ProviderQueryError(msg)
 
         Base = automap_base(metadata=metadata)
-        Base.prepare()
+        Base.prepare(
+            name_for_scalar_relationship=self._name_for_scalar_relationship,
+        )
         TableModel = getattr(Base.classes, self.table)
 
         return TableModel
+
+    @staticmethod
+    def _name_for_scalar_relationship(
+        base, local_cls, referred_cls, constraint,
+    ):
+        """Function used when automapping classes and relationships from
+        database schema and fixes potential naming conflicts.
+        """
+        name = referred_cls.__name__.lower()
+        local_table = local_cls.__table__
+        if name in local_table.columns:
+            newname = name + '_'
+            LOGGER.debug(
+                f'Already detected column name {name!r} in table '
+                f'{local_table!r}. Using {newname!r} for relationship name.'
+            )
+            return newname
+        return name
 
     def _sqlalchemy_to_feature(self, item):
         feature = {

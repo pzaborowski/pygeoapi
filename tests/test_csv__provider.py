@@ -35,6 +35,7 @@ from pygeoapi.provider.csv_ import CSVProvider
 from .util import get_test_file_path
 
 path = get_test_file_path('data/obs.csv')
+stations_path = get_test_file_path('data/station_list.csv')
 
 
 @pytest.fixture()
@@ -51,20 +52,34 @@ def config():
     }
 
 
+@pytest.fixture()
+def station_config():
+    return {
+        'name': 'CSV',
+        'type': 'feature',
+        'data': stations_path,
+        'id_field': 'wigos_station_identifier',
+        'geometry': {
+            'x_field': 'longitude',
+            'y_field': 'latitude'
+        }
+    }
+
+
 def test_query(config):
     p = CSVProvider(config)
 
     fields = p.get_fields()
-    assert len(fields) == 6
-    assert fields['value']['type'] == 'string'
-    assert fields['stn_id']['type'] == 'string'
+    assert len(fields) == 4
+    assert fields['value']['type'] == 'number'
+    assert fields['stn_id']['type'] == 'integer'
 
     results = p.query()
     assert len(results['features']) == 5
     assert results['numberMatched'] == 5
     assert results['numberReturned'] == 5
     assert results['features'][0]['id'] == '371'
-    assert results['features'][0]['properties']['value'] == '89.9'
+    assert results['features'][0]['properties']['value'] == 89.9
 
     assert results['features'][0]['geometry']['coordinates'][0] == -75.0
     assert results['features'][0]['geometry']['coordinates'][1] == 45.0
@@ -107,7 +122,7 @@ def test_get(config):
 
     result = p.get('964')
     assert result['id'] == '964'
-    assert result['properties']['value'] == '99.9'
+    assert result['properties']['value'] == 99.9
 
 
 def test_get_not_existing_item_raise_exception(config):
@@ -115,3 +130,18 @@ def test_get_not_existing_item_raise_exception(config):
     p = CSVProvider(config)
     with pytest.raises(ProviderItemNotFoundError):
         p.get('404')
+
+
+def test_get_station(station_config):
+    p = CSVProvider(station_config)
+
+    results = p.query(limit=20)
+    assert len(results['features']) == 20
+    assert results['numberMatched'] == 20
+    assert results['numberReturned'] == 20
+
+    result = p.get('0-20000-0-16337')
+    assert result['properties']['station_name'] == 'BONIFATI (16337-0)'
+
+    result = p.get('0-454-2-AWSNAMITAMBO')
+    assert result['properties']['station_name'] == 'NAMITAMBO'
