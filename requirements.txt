@@ -3,7 +3,7 @@ click>7,<=8
 Flask
 jinja2==3.0.3
 jsonschema
-pydantic<2.0
+pydantic
 pygeofilter
 pygeoif
 pyproj
