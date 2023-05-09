@@ -58,7 +58,8 @@ PLUGINS = {
         'TinyDBCatalogue': 'pygeoapi.provider.tinydb_.TinyDBCatalogueProvider',
         'WMSFacade': 'pygeoapi.provider.wms_facade.WMSFacadeProvider',
         'xarray': 'pygeoapi.provider.xarray_.XarrayProvider',
-        'xarray-edr': 'pygeoapi.provider.xarray_edr.XarrayEDRProvider'
+        'xarray-edr': 'pygeoapi.provider.xarray_edr.XarrayEDRProvider',
+        'wcs-edr': 'pygeoapi.provider.wcs_edr.WCS2EDRApiProvider',
     },
     'formatter': {
         'CSV': 'pygeoapi.formatter.csv_.CSVFormatter'

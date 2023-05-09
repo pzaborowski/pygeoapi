@@ -118,7 +118,13 @@ class SensorThingsProvider(BaseProvider):
                 self.rel_link = get_base_url(CONFIG)
 
             for (name, rs) in CONFIG['resources'].items():
+
+                
+                LOGGER.info('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\nProviders looksup for name ' + str(name))
+
                 pvs = rs.get('providers')
+
+                LOGGER.info('Providers looksup: ' + str(pvs))
                 p = get_provider_default(pvs)
                 e = p.get('entity') or self._get_entity(p['data'])
                 if any([
@@ -227,7 +233,7 @@ class SensorThingsProvider(BaseProvider):
         fc = {'type': 'FeatureCollection', 'features': []}
         params = {
             '$skip': str(offset),
-            '$top': str(limit)
+            'limit': str(limit)
         }
 
         if properties or bbox or datetime_:
@@ -250,6 +256,7 @@ class SensorThingsProvider(BaseProvider):
         v = response.get('value')
 
         # Query if values are less than expected
+        """
         while len(v) < limit:
             try:
                 LOGGER.debug('Fetching next set of values')
@@ -258,8 +265,9 @@ class SensorThingsProvider(BaseProvider):
                 v.extend(response['value'])
             except (ProviderConnectionError, KeyError):
                 break
-
+        """
         hits_ = min(limit, len(v))
+        
         props = (select_properties, skip_geometry)
         fc['features'] = [self._make_feature(e, *props) for e in v[:hits_]]
         fc['numberReturned'] = hits_
@@ -305,8 +313,9 @@ class SensorThingsProvider(BaseProvider):
 
         :returns: STA response
         """
-        params.update({'$expand': EXPAND[self.entity]})
+        #params.update({'$expand': EXPAND[self.entity]})
 
+        LOGGER.info("calling: " + url + "?" + str(params))
         r = self.http.get(url, params=params)
 
         if not r.ok:

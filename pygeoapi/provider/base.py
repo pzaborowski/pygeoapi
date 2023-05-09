@@ -66,6 +66,7 @@ class BaseProvider:
         self.uri_field = provider_def.get('uri_field')
         self.x_field = provider_def.get('x_field')
         self.y_field = provider_def.get('y_field')
+        self.time_api_label = provider_def.get('time_api_label')
         self.time_field = provider_def.get('time_field')
         self.title_field = provider_def.get('title_field')
         self.properties = provider_def.get('properties', [])

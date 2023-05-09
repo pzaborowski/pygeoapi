@@ -480,14 +480,17 @@ def get_provider_default(providers: list) -> dict:
 
     :returns: filtered ``dict``
     """
-
+    LOGGER.debug('loooking for default provider type: ' + str(providers))
     try:
         default = (next(d for i, d in enumerate(providers) if 'default' in d
                    and d['default']))
         LOGGER.debug('found default provider type')
     except StopIteration:
         LOGGER.debug('no default provider type.  Returning first provider')
-        default = providers[0]
+        if (providers[0]):
+            default = providers[0]
+        else:
+            default = None
 
     LOGGER.debug(f"Default provider: {default['type']}")
     return default

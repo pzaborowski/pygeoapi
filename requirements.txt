@@ -16,3 +16,6 @@ shapely<2.0
 SQLAlchemy<2.0.0
 tinydb
 unicodecsv
+xarray
+netcdf4
+zarr
