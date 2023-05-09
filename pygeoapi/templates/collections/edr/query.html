@@ -43,6 +43,7 @@
           var layer = C.dataLayer(cov, {parameter: p.key})
             .on('afterAdd', function () {
               C.legend(layer).addTo(map)
+              console.log(layer.getBounds())
               map.fitBounds(layer.getBounds())
             })
             .addTo(map)
