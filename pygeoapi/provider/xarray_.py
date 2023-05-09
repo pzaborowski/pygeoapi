@@ -36,6 +36,8 @@ import zipfile
 
 import xarray
 import numpy as np
+import pandas as pd
+import json
 
 from pygeoapi.provider.base import (BaseProvider,
                                     ProviderConnectionError,
@@ -354,10 +356,11 @@ class XarrayProvider(BaseProvider):
                         'stop': miny,
                         'num': metadata['height']
                     },
-                    self.time_field: {
-                        'start': mint,
-                        'stop': maxt,
-                        'num': metadata['time_steps']
+                    self.time_api_label: {
+                        'values' : metadata['time_values']
+                        #'start': mint,
+                        #'stop': maxt,
+                        #'num': metadata['time_steps']
                     }
                 },
                 'referencing': [{
@@ -401,7 +404,7 @@ class XarrayProvider(BaseProvider):
                     'type': 'NdArray',
                     'dataType': str(self._data[variable].dtype),
                     'axisNames': [
-                        'y', 'x', self._coverage_properties['time_axis_label']
+                        'y', 'x', self.time_api_label #self._coverage_properties['time_axis_label']
                     ],
                     'shape': [metadata['height'],
                               metadata['width'],

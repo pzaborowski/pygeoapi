@@ -151,7 +151,8 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
             "driver": "xarray",
             "height": height,
             "width": width,
-            "time_steps": time_steps,
+            "time_steps": data.dims[self.time_field],
+            #"time_values": list(map(lambda dt: str(dt), data.coords[self.time_field].to_numpy())),
             "variables": {var_name: var.attrs
                           for var_name, var in data.variables.items()}
         }
@@ -224,7 +225,10 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
             "driver": "xarray",
             "height": height,
             "width": width,
-            "time_steps": time_steps,
+
+            "time_steps": data.dims[self.time_field],
+            "time_values": list(map(lambda dt: str(dt), data.coords[self.time_field].to_numpy())),
+
             "variables": {var_name: var.attrs
                           for var_name, var in data.variables.items()}
         }
