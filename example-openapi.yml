@@ -191,10 +191,10 @@ paths:
       summary: Collections
       tags:
       - server
-  /collections/records:
+  /collections/analysed-sst-edr:
     get:
-      description: this is test records dataset based on the open.canada.sa sample-records.tinydb
-      operationId: describeRecordsCollection
+      description: SST analysed data Zarr data example via EDR API
+      operationId: describeAnalysed-sst-edrCollection
       parameters:
       - $ref: '#/components/parameters/f'
       - $ref: '#/components/parameters/lang'
@@ -207,184 +207,147 @@ paths:
           $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
         '500':
           $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
-      summary: Get my datasets or whatever records are about metadata
+      summary: Get SST analysed on OGC EDR API metadata
       tags:
-      - records
-  /collections/records/items:
+      - analysed-sst-edr
+  /collections/analysed-sst-edr/cube:
     get:
-      description: this is test records dataset based on the open.canada.sa sample-records.tinydb
-      operationId: getRecordsFeatures
+      description: SST analysed data Zarr data example via EDR API
+      operationId: queryCubeAnalysed-sst-edr
       parameters:
-      - &id001
-        description: The optional f parameter indicates the output format which the
-          server shall provide as part of the response document.  The default format
-          is GeoJSON.
-        explode: false
-        in: query
-        name: f
-        required: false
-        schema:
-          default: json
-          enum:
-          - json
-          - html
-          - jsonld
-          - csv
-          type: string
-        style: form
-      - &id002
-        description: The optional lang parameter instructs the server return a response
-          in a certain language, if supported.  If the language is not among the available
-          values, the Accept-Language header language will be used if it is supported.
-          If the header is missing, the default server language is used. Note that
-          providers may only support a single language (or often no language at all),
-          that can be different from the server language.  Language strings can be
-          written in a complex (e.g. "fr-CA,fr;q=0.9,en-US;q=0.8,en;q=0.7"), simple
-          (e.g. "de") or locale-like (e.g. "de-CH" or "fr_BE") fashion.
-        in: query
-        name: lang
-        required: false
-        schema:
-          default: en-US
-          enum:
-          - en-US
-          - fr-CA
-          type: string
-      - $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/bbox
-      - $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/limit
-      - description: The properties that should be included for each feature. The
-          parameter value is a comma-separated list of property names.
-        explode: false
-        in: query
-        name: properties
-        required: false
-        schema:
-          items:
-            enum:
-            - created
-            - updated
-            - type
-            - title
-            - description
-            - providers
-            - externalIds
-            - themes
-            - q
-            type: string
-          type: array
-        style: form
-      - $ref: '#/components/parameters/vendorSpecificParameters'
-      - $ref: '#/components/parameters/skipGeometry'
-      - $ref: https://raw.githubusercontent.com/opengeospatial/ogcapi-records/master/core/openapi/parameters/sortby.yaml
-      - $ref: '#/components/parameters/offset'
-      - $ref: https://raw.githubusercontent.com/opengeospatial/ogcapi-records/master/core/openapi/parameters/q.yaml
-      - explode: false
-        in: query
-        name: created
-        required: false
-        schema:
-          type: string
-        style: form
-      - explode: false
-        in: query
-        name: updated
-        required: false
-        schema:
-          type: string
-        style: form
-      - explode: false
-        in: query
-        name: type
-        required: false
-        schema:
-          type: string
-        style: form
-      - explode: false
-        in: query
-        name: title
-        required: false
-        schema:
-          type: string
-        style: form
-      - explode: false
-        in: query
-        name: description
-        required: false
-        schema:
-          type: string
-        style: form
-      - explode: false
-        in: query
-        name: providers
-        required: false
-        schema:
-          type: string
-        style: form
-      - explode: false
-        in: query
-        name: externalIds
-        required: false
-        schema:
-          type: string
-        style: form
-      - explode: false
-        in: query
-        name: themes
-        required: false
-        schema:
-          type: string
-        style: form
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/cubeCoords.yaml
+      - $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/datetime
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/parameter-name.yaml
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/z.yaml
+      - $ref: '#/components/parameters/f'
       responses:
         '200':
-          $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/Features
-        '400':
-          $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
-        '404':
-          $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
-        '500':
-          $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
-      summary: Get my datasets or whatever records are about items
+          content:
+            application/prs.coverage+json:
+              schema:
+                $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/schemas/coverageJSON.yaml
+          description: Response
+      summary: query SST analysed data Zarr data example via EDR API by cube
       tags:
-      - records
-  /collections/records/items/{featureId}:
+      - analysed-sst-edr
+  /collections/analysed-sst-edr/position:
     get:
-      description: this is test records dataset based on the open.canada.sa sample-records.tinydb
-      operationId: getRecordsFeature
+      description: SST analysed data Zarr data example via EDR API
+      operationId: queryPositionAnalysed-sst-edr
       parameters:
-      - $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/featureId
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/positionCoords.yaml
+      - $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/datetime
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/parameter-name.yaml
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/z.yaml
+      - $ref: '#/components/parameters/f'
+      responses:
+        '200':
+          content:
+            application/prs.coverage+json:
+              schema:
+                $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/schemas/coverageJSON.yaml
+          description: Response
+      summary: query SST analysed data Zarr data example via EDR API by position
+      tags:
+      - analysed-sst-edr
+  /collections/csv-edr:
+    get:
+      description: example OGC WCS wrapper tested for ERDDAP NOAA server
+      operationId: describeCsv-edrCollection
+      parameters:
       - $ref: '#/components/parameters/f'
       - $ref: '#/components/parameters/lang'
       responses:
         '200':
-          $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/Feature
+          $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/Collection
         '400':
           $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
         '404':
           $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
         '500':
           $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
-      summary: Get my datasets or whatever records are about item by id
+      summary: Get WCS wrapper exposing EDR metadata
       tags:
-      - records
-  /collections/records/queryables:
+      - csv-edr
+  /collections/csv-edr/cube:
     get:
-      description: this is test records dataset based on the open.canada.sa sample-records.tinydb
-      operationId: getRecordsQueryables
+      description: example OGC WCS wrapper tested for ERDDAP NOAA server
+      operationId: queryCubeCsv-edr
       parameters:
-      - *id001
-      - *id002
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/cubeCoords.yaml
+      - $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/datetime
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/parameter-name.yaml
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/z.yaml
+      - $ref: '#/components/parameters/f'
       responses:
         '200':
-          $ref: '#/components/responses/Queryables'
+          content:
+            application/prs.coverage+json:
+              schema:
+                $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/schemas/coverageJSON.yaml
+          description: Response
+      summary: query example OGC WCS wrapper tested for ERDDAP NOAA server by cube
+      tags:
+      - csv-edr
+  /collections/sst-edr:
+    get:
+      description: SST example netCDF data via EDR API
+      operationId: describeSst-edrCollection
+      parameters:
+      - $ref: '#/components/parameters/f'
+      - $ref: '#/components/parameters/lang'
+      responses:
+        '200':
+          $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/Collection
         '400':
           $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
         '404':
           $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
         '500':
           $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
-      summary: Get my datasets or whatever records are about queryables
+      summary: Get SST on OGC EDR API metadata
       tags:
-      - records
+      - sst-edr
+  /collections/sst-edr/cube:
+    get:
+      description: SST example netCDF data via EDR API
+      operationId: queryCubeSst-edr
+      parameters:
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/cubeCoords.yaml
+      - $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/datetime
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/parameter-name.yaml
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/z.yaml
+      - $ref: '#/components/parameters/f'
+      responses:
+        '200':
+          content:
+            application/prs.coverage+json:
+              schema:
+                $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/schemas/coverageJSON.yaml
+          description: Response
+      summary: query SST example netCDF data via EDR API by cube
+      tags:
+      - sst-edr
+  /collections/sst-edr/position:
+    get:
+      description: SST example netCDF data via EDR API
+      operationId: queryPositionSst-edr
+      parameters:
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/positionCoords.yaml
+      - $ref: https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/datetime
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/parameter-name.yaml
+      - $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/parameters/z.yaml
+      - $ref: '#/components/parameters/f'
+      responses:
+        '200':
+          content:
+            application/prs.coverage+json:
+              schema:
+                $ref: https://schemas.opengis.net/ogcapi/edr/1.0/openapi/schemas/coverageJSON.yaml
+          description: Response
+      summary: query SST example netCDF data via EDR API by position
+      tags:
+      - sst-edr
   /conformance:
     get:
       description: API conformance definition
@@ -433,7 +396,7 @@ paths:
       - server
 servers:
 - description: pygeoapi provides an API to geospatial data
-  url: http://localhost:5002
+  url: http://localhost:5003
 tags:
 - description: pygeoapi provides an API to geospatial data
   externalDocs:
@@ -442,6 +405,10 @@ tags:
   name: server
 - description: SpatioTemporal Asset Catalog
   name: stac
-- description: this is test records dataset based on the open.canada.sa sample-records.tinydb
-  name: records
+- description: example OGC WCS wrapper tested for ERDDAP NOAA server
+  name: csv-edr
+- description: SST example netCDF data via EDR API
+  name: sst-edr
+- description: SST analysed data Zarr data example via EDR API
+  name: analysed-sst-edr
 
