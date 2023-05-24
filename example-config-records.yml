@@ -54,11 +54,7 @@ server:
     map:
         url: https://tile.openstreetmap.org/{z}/{x}/{y}.png
         attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
-#    manager:
-#        name: TinyDB
-#        connection: /tmp/pygeoapi-process-manager.db
-#        output_dir: /tmp/
-    # ogc_schemas_location: /opt/schemas.opengis.net
+
     
 logging:
     level: DEBUG
@@ -139,4 +135,4 @@ resources:
               name: TinyDBCatalogue
               data: tests/data/open.canada.ca/sample-records.tinydb
               id_field: identifier
-              title_field: datetimefield
+              time_field: updated
