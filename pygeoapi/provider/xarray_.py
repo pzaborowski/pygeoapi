@@ -374,8 +374,8 @@ class XarrayProvider(BaseProvider):
                         'num': metadata['width']
                     },
                     'y': {
-                        'start': maxy,
-                        'stop': miny,
+                        'start': miny,
+                        'stop': maxy,
                         'num': metadata['height']
                     },
                     self.time_api_label: {
@@ -424,6 +424,7 @@ class XarrayProvider(BaseProvider):
 
             for key in cj['parameters'].keys():
                 cj['ranges'][key] = {}
+                data = data.fillna(None)
                 values = data[key].transpose(self.y_field, self.x_field,
                                                                   self.time_field).values.flatten().tolist()  # noqa
                 cj['ranges'][key] = {
@@ -438,12 +439,7 @@ class XarrayProvider(BaseProvider):
                               metadata['width'],
                               metadata['time_steps']]
                 }
-                opstart = datetime.now()
-                data = data.fillna(None)
-                LOGGER.debug("fillna time:" + str(datetime.now()-opstart))
                 cj['ranges'][key]['values'] = values
-
-
 
         except IndexError as err:
             LOGGER.warning(err)
