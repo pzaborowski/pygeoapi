@@ -352,8 +352,8 @@ class XarrayProvider(BaseProvider):
                         'num': metadata['width']
                     },
                     'y': {
-                        'start': maxy,
-                        'stop': miny,
+                        'start': miny,
+                        'stop': maxy,
                         'num': metadata['height']
                     },
                     self.time_api_label: {
@@ -410,7 +410,10 @@ class XarrayProvider(BaseProvider):
                               metadata['width'],
                               metadata['time_steps']]
                 }
-                cj['ranges'][key]['values'] = data[key].values.flatten().tolist()  # noqa
+
+
+                data = data.fillna(None)
+                cj['ranges'][key]['values'] = data[key].transpose(self.y_field,self.x_field,self.time_field).values.flatten().tolist()  # noqa
         except IndexError as err:
             LOGGER.warning(err)
             raise ProviderQueryError('Invalid query parameter')
