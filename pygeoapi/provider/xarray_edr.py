@@ -33,12 +33,13 @@ import numpy as np
 
 from pygeoapi.provider.base import ProviderNoDataError, ProviderQueryError
 from pygeoapi.provider.base_edr import BaseEDRProvider
+
 from pygeoapi.provider.xarray_ import (
     _to_datetime_string,
     _convert_float32_to_float64,
     XarrayProvider,
 )
-
+import pandas as pd
 LOGGER = logging.getLogger(__name__)
 
 
@@ -112,7 +113,13 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
 
         datetime_ = kwargs.get('datetime_')
         if datetime_ is not None:
-            query_params[self.time_field] = self._make_datetime(datetime_)
+
+            if '/' in datetime_:
+                dts = datetime_.split('/')
+                query_params[self._coverage_properties['time_axis_label']] = slice(pd.to_datetime(dts[0]) ,pd.to_datetime(dts[1])) # noqa
+            else:
+                query_params[self._coverage_properties['time_axis_label']] = datetime_  # noqa
+
 
         LOGGER.debug(f'query parameters: {query_params}')
 
@@ -211,9 +218,17 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
 
         datetime_ = kwargs.get('datetime_')
         if datetime_ is not None:
-            query_params[self.time_field] = self._make_datetime(datetime_)
+
+            if '/' in datetime_:
+                dts = datetime_.split('/')
+                query_params[self._coverage_properties['time_axis_label']] = slice(pd.to_datetime(dts[0]) ,pd.to_datetime(dts[1])) # noqa
+            else:
+                query_params[self._coverage_properties['time_axis_label']] = datetime_  # noqa
+
 
         LOGGER.debug(f'query parameters: {query_params}')
+
+
         try:
             if select_properties:
                 self.fields = select_properties
