@@ -38,10 +38,9 @@
 
     var layers = L.control.layers(null, null, {collapsed: false}).addTo(map)
 
-    var layer
     CovJSON.read(JSON.parse('{{ data | to_json | safe }}')).then(function (cov) {
       cov.parameters.forEach((p) => {
-          layer = C.dataLayer(cov, {parameter: p.key})
+          var layer = C.dataLayer(cov, {parameter: p.key})
             .on('afterAdd', function () {
               C.legend(layer).addTo(map)
               map.fitBounds(layer.getBounds())
