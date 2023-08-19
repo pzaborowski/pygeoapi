@@ -54,8 +54,12 @@ class Mock(MagicMock):
         return MagicMock()
 
 
+# Avoid warning when building the documentation by mocking libraries
 MOCK_MODULES = ['osgeo', 'psycopg2', 'psycopg2.sql', 'psycopg2.extras',
-                'elasticsearch', 'elasticsearch.client.indices']
+                'geoalchemy2', 'elasticsearch',
+                'elasticsearch.client.indices',
+                'elasticsearch_dsl', 'geoalchemy2.functions',
+                'geoalchemy2.shape']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 PYGEOAPI_HOME = os.path.abspath('../..')
@@ -96,7 +100,7 @@ master_doc = 'index'
 # General information about the project.
 # General information about the project.
 project = 'pygeoapi'
-author = 'pygeoapi team'
+author = 'pygeoapi development team'
 license = 'This work is licensed under a Creative Commons Attribution 4.0 International License'  # noqa
 copyright = '2018-2023, ' + author + ' ' + license
 
@@ -107,7 +111,7 @@ today_fmt = '%Y-%m-%d'
 # built documents.
 #
 # The short X.Y version.
-version = '0.15.dev0'
+version = '0.16.dev0'
 # The full version, including alpha/beta/rc tags.
 release = version
 
@@ -116,7 +120,7 @@ release = version
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.

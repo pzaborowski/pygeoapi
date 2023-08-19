@@ -32,7 +32,8 @@ Reference
 ^^^^^^^^^^
 
 The ``server`` section provides directives on binding and high level tuning.
-Please find more information related to API design rules (the property at the bottom of the example below) :ref:`further down<API Design Rules>`.
+
+For more information related to API design rules (the ``api_rules`` property in the example below) see :ref:`API Design Rules`.
 
 .. code-block:: yaml
 
@@ -161,8 +162,8 @@ default.
               - observations
               - monitoring
           linked-data: # linked data configuration (see Linked Data section)
-              item_template: tests/data/base.jsonld 
-              context:  
+              item_template: tests/data/base.jsonld
+              context:
                   - datetime: https://schema.org/DateTime
                   - vocab: https://example.com/vocab#
                     stn_id: "vocab:stn_id"
@@ -188,21 +189,30 @@ default.
               - type: feature # underlying data geospatial type: (allowed values are: feature, coverage, record, tile, edr)
                 default: true  # optional: if not specified, the first provider definition is considered the default
                 name: CSV
-                # transactions: DO NOT ACTIVATE unless you have setup access control beyond pygeoapi
-                editable: true  # optional: if backend is writable, default is false
                 data: tests/data/obs.csv  # required: the data filesystem path or URL, depending on plugin setup
                 id_field: id  # required for vector data, the field corresponding to the ID
                 uri_field: uri # optional field corresponding to the Uniform Resource Identifier (see Linked Data section)
                 time_field: datetimestamp  # optional field corresponding to the temporal property of the dataset
                 title_field: foo # optional field of which property to display as title/label on HTML pages
+                properties:  # optional: only return the following properties, in order
+                    - stn_id
+                    - value
+                # editable transactions: DO NOT ACTIVATE unless you have setup access control beyond pygeoapi
+                editable: true  # optional: if backend is writable, default is false
+                # coordinate reference systems (CRS) section is optional
+                # default CRSs are http://www.opengis.net/def/crs/OGC/1.3/CRS84 (coordinates without height)
+                # and http://www.opengis.net/def/crs/OGC/1.3/CRS84h (coordinates with ellipsoidal height)
+                crs: # supported coordinate reference systems (CRS) for 'crs' and 'bbox-crs' query parameters
+                    - http://www.opengis.net/def/crs/EPSG/0/28992
+                    - http://www.opengis.net/def/crs/OGC/1.3/CRS84
+                    - http://www.opengis.net/def/crs/EPSG/0/4326
+                storage_crs: http://www.opengis.net/def/crs/OGC/1.3/CRS84 # optional CRS in which data is stored, default: as 'crs' field
+                storage_crs_coordinate_epoch: : 2017.23 # optional, if storage_crs is a dynamic coordinate reference system
                 format:  # optional default format
                     name: GeoJSON  # required: format name
                     mimetype: application/json  # required: format mimetype
                 options:  # optional options to pass to provider (i.e. GDAL creation)
                     option_name: option_value
-                properties:  # optional: only return the following properties, in order
-                    - stn_id
-                    - value
 
       hello-world:  # name of process
           type: collection  # REQUIRED (collection, process, or stac-collection)
@@ -296,6 +306,8 @@ Examples:
    curl https://example.org/openapi  # resource foo is not advertised
    curl https://example.org/collections/foo  # user can access resource normally
 
+
+.. _API Design Rules:
 
 API Design Rules
 ----------------
@@ -570,12 +582,12 @@ deployment flexibility, the path can be specified with string interpolation of e
 .. code-block:: yaml
 
     linked-data:
-      item_template: tests/data/base.jsonld 
+      item_template: tests/data/base.jsonld
       context:
         - datetime: https://schema.org/DateTime
 
 .. note::
-   The template ``tests/data/base.jsonld`` renders the unmodified JSON-LD. For more information on the capacities 
+   The template ``tests/data/base.jsonld`` renders the unmodified JSON-LD. For more information on the capacities
    of Jinja2 templates, see :ref:`html-templating`.
 
 Summary

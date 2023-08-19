@@ -16,8 +16,12 @@ pygeoapi itself implements numerous formats, data providers and the process func
 The pygeoapi architecture supports the following subsystems:
 
 * data providers
+
 * output formats
+
 * processes
+
+* process manager
 
 The core pygeoapi plugin registry can be found in ``pygeoapi.plugin.PLUGINS``.
 
@@ -26,6 +30,7 @@ Each plugin type implements its relevant base class as the API contract:
 * data providers: ``pygeoapi.provider.base``
 * output formats: ``pygeoapi.formatter.base``
 * processes: ``pygeoapi.process.base``
+* process_manager: ``pygeoapi.process.manager.base``
 
 .. todo:: link PLUGINS to API doc
 
@@ -37,6 +42,107 @@ pygeoapi for easier maintenance of software updates.
    It is recommended to store pygeoapi plugins outside of pygeoapi for easier software
    updates and package management
 
+
+Connecting plugins to pygeoapi
+------------------------------
+
+The following methods are options to connect a plugin to pygeoapi:
+
+**Option 1**: implement outside of pygeoapi and add to configuration (recommended)
+
+* Create a Python package with the plugin code (see `Cookiecutter`_ as an example)
+* Install this Python package onto your system (``python3 setup.py install``).  At this point your new package
+  should be in the ``PYTHONPATH`` of your pygeoapi installation
+* Specify the main plugin class as the ``name`` of the relevant type in the
+  pygeoapi configuration. For example, for a new vector data provider:
+
+.. code-block:: yaml
+
+   providers:
+       - type: feature
+         # name may refer to an external Python class, that is loaded by pygeoapi at runtime
+         name: mycooldatapackage.mycoolvectordata.MyCoolVectorDataProvider
+         data: /path/to/file
+         id_field: stn_id
+
+
+Specifying custom pygeoapi CLI commands
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Third-party plugins may also provide custom CLI commands. This can be done by means of two additional steps:
+
+1. Create your CLI commands using click
+2. In your plugin's ``setup.py`` or ``pyproject.toml`` file, specify an entrypoint for the ``pygeoapi`` group
+   pointing to your click CLI command or group.
+
+As a simple example, lets imagine you develop a plugin named ``myplugin``, which has a ``cli.py`` module with
+the following contents:
+
+.. code-block:: python
+
+   # module: myplugin.cli
+   import click
+
+   @click.command(name="super-command")
+   def my_cli_command():
+       print("Hello, this is my custom pygeoapi CLI command!")
+
+
+Then, in your plugin's ``setup.py`` file, specify the entrypoints section:
+
+.. code-block:: python
+
+   # file: setup.py
+   entry_points={
+       'pygeoapi': ['my-plugin = myplugin.cli:my_cli_command']
+   }
+
+Alternatively, if using a ``pyproject.toml`` file instead:
+
+.. code-block:: python
+
+   # file: pyproject.toml
+   # Noter that this example uses poetry, other Python projects may differ in
+   # how they expect entry_points to be specified
+   [tool.poetry.plugins."pygeoapi"]
+   my-plugin = 'myplugin.cli:my_cli_command'
+
+
+After having installed this plugin, you should now be able to call the CLI command by running:
+
+.. code-block:: sh
+
+   $ pygeoapi plugins super-command
+   Hello, this is my custom pygeoapi CLI command!
+
+
+.. note::  The United States Geological Survey has created a Cookiecutter project for creating pygeoapi plugins. See the `pygeoapi-plugin-cookiecutter`_ project to get started.
+
+**Option 2**: Update in core pygeoapi:
+
+* Copy your plugin code into the pygeoapi source code directory - for example, if it is a provider plugin, copy it
+  to ``pygeoapi/provider``
+* Update the plugin registry in ``pygeoapi/plugin.py:PLUGINS['provider']`` with the plugin's
+  shortname (say ``MyCoolVectorData``) and dotted path to the class (i.e. ``pygeoapi.provider.mycoolvectordata.MyCoolVectorDataProvider``)
+* Specify in your dataset provider configuration as follows:
+
+.. code-block:: yaml
+
+   providers:
+       - type: feature
+         # name may also refer to a known core pygeopai plugin
+         name: MyCoolVectorData
+         data: /path/to/file
+         id_field: stn_id
+
+
+Customizing pygeoapi process manager
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The pygeoapi process manager may also be customized. Similarly to the provider plugins, you may use the pygeoapi
+configuration's ``server.manager.name`` to indicate either the dotted path to the python package and the relevant
+manager class (*i.e.* similar to option 1 above) or the name of a known core pygeoapi plugin (*i.e.*, similar to
+option 2 above).
 
 Example: custom pygeoapi vector data provider
 ---------------------------------------------
@@ -108,45 +214,7 @@ Each base class documents the functions, arguments and return types required for
 
 .. note::  You can add language support to your plugin using :ref:`these guides<language>`.
 
-
-Connecting to pygeoapi
-^^^^^^^^^^^^^^^^^^^^^^
-
-The following methods are options to connect the plugin to pygeoapi:
-
-**Option 1**: Update in core pygeoapi:
-
-* copy ``mycoolvectordata.py`` into ``pygeoapi/provider``
-* update the plugin registry in ``pygeoapi/plugin.py:PLUGINS['provider']`` with the plugin's
-  shortname (say ``MyCoolVectorData``) and dotted path to the class (i.e. ``pygeoapi.provider.mycoolvectordata.MyCoolVectorDataProvider``)
-* specify in your dataset provider configuration as follows:
-
-.. code-block:: yaml
-
-   providers:
-       - type: feature
-         name: MyCoolVectorData
-         data: /path/to/file
-         id_field: stn_id
-
-
-**Option 2**: implement outside of pygeoapi and add to configuration (recommended)
-
-* create a Python package of the ``mycoolvectordata.py`` module (see `Cookiecutter`_ as an example)
-* install your Python package onto your system (``python3 setup.py install``).  At this point your new package
-  should be in the ``PYTHONPATH`` of your pygeoapi installation
-* specify in your dataset provider configuration as follows:
-
-.. code-block:: yaml
-
-   providers:
-       - type: feature
-         name: mycooldatapackage.mycoolvectordata.MyCoolVectorDataProvider
-         data: /path/to/file
-         id_field: stn_id
-
-
-.. note::  The United States Geological Survey has created a Cookiecutter project for creating pygeoapi plugins. See the `pygeoapi-plugin-cookiecutter`_ project to get started.
+.. note::  You can let the pygeoapi core do coordinate transformation for `crs` queries using the `@crs_transform` Decorator on `query()` and `get()` methods. See :ref:`crs`.
 
 
 Example: custom pygeoapi raster data provider
@@ -259,8 +327,10 @@ by downstream applications.
    `ogc-edc`_,Euro Data Cube,coverage provider atop the EDC API
    `nldi_xstool`_,United States Geological Survey,Water data processing
    `pygeometa-plugin`_,pygeometa project,pygeometa as a service
+   `cgs-plugins`_,Center for Geospatial Solutions,feature and processes plugins
 
 
+.. _`cgs-plugins`: https://github.com/cgs-earth/pygeoapi-plugins
 .. _`Cookiecutter`: https://github.com/audreyfeldroy/cookiecutter-pypackage
 .. _`msc-pygeoapi`: https://github.com/ECCC-MSC/msc-pygeoapi
 .. _`pygeoapi-kubernetes-papermill`: https://github.com/eurodatacube/pygeoapi-kubernetes-papermill

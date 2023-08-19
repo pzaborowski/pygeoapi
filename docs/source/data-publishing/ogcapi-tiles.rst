@@ -1,10 +1,10 @@
 .. _ogcapi-tiles:
 
-Publishing map tiles to OGC API - Tiles
+Publishing tiles to OGC API - Tiles
 =======================================
 
 `OGC API - Tiles`_ provides access to geospatial data in the form of tiles
-(map, vector, etc.).
+(map, vector, coverage, etc.).
 
 pygeoapi can publish tiles from local or remote data sources (including cloud
 object storage or a tile service). To integrate tiles from a local data source, it is assumed
@@ -54,7 +54,7 @@ This code block shows how to configure pygeoapi to read Mapbox vector tiles, fro
          data: tests/data/tiles/ne_110m_lakes  # local directory tree
          # data: http://localhost:9000/ne_110m_lakes/{z}/{x}/{y}.pbf # tiles stored on a MinIO bucket
          options:
-             metadata_format: raw # default | tilejson
+             metadata_format: default # default | tilejson
              zoom:
                  min: 0
                  max: 5
@@ -75,7 +75,7 @@ This code block shows how to configure pygeoapi to read Mapbox vector tiles, fro
          # if you don't use precision 0, you will be requesting for aggregations which are not supported in the 
          # free version of elastic
          options:
-             metadata_format: raw # default | tilejson
+             metadata_format: default # default | tilejson
              zoom:
                  min: 0
                  max: 5
@@ -94,6 +94,7 @@ This code block shows how to configure pygeoapi to read Mapbox vector tiles, fro
               name: MVT
               data: http://localhost:7800/public.ne_50m_admin_0_countries/{z}/{x}/{y}.pbf
               options:
+                metadata_format: default # default | tilejson
                 zoom:
                     min: 0
                     max: 16

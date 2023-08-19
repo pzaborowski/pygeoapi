@@ -29,6 +29,8 @@
 
 import logging
 
+import numpy as np
+
 from pygeoapi.provider.base import ProviderNoDataError, ProviderQueryError
 from pygeoapi.provider.base_edr import BaseEDRProvider
 from pygeoapi.provider.xarray_ import _to_datetime_string, XarrayProvider
@@ -107,12 +109,14 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
 
         datetime_ = kwargs.get('datetime_')
         if datetime_ is not None:
+
             if '/' in datetime_:
                 dts = datetime_.split('/')
                 query_params[self._coverage_properties['time_axis_label']] = slice(pd.to_datetime(dts[0]) ,pd.to_datetime(dts[1])) # noqa    
             else:
                 query_params[self._coverage_properties['time_axis_label']] = datetime_  # noqa
                 
+
         LOGGER.debug(f'query parameters: {query_params}')
 
         try:
@@ -121,11 +125,20 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
                 data = self._data[[*select_properties]]
             else:
                 data = self._data
-            data = data.sel(query_params, method='nearest')
+            if (datetime_ is not None and
+                isinstance(query_params[self.time_field], slice)): # noqa
+                # separate query into spatial and temporal components
+                LOGGER.debug('Separating temporal query')
+                time_query = {self.time_field:
+                              query_params[self.time_field]}
+                remaining_query = {key: val for key,
+                                   val in query_params.items()
+                                   if key != self.time_field}
+                data = data.sel(time_query).sel(remaining_query,
+                                                method='nearest')
+            else:
+                data = data.sel(query_params, method='nearest')
         except KeyError:
-            raise ProviderNoDataError()
-
-        if len(data.coords[self.time_field].values) < 1:
             raise ProviderNoDataError()
 
         try:
@@ -136,19 +149,17 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
             width = data.dims[self.x_field]
         except KeyError:
             width = 1
+        time, time_steps = self._parse_time_metadata(data, kwargs)
 
         bbox = wkt.bounds
         out_meta = {
             'bbox': [bbox[0], bbox[1], bbox[2], bbox[3]],
-            "time": [
-                _to_datetime_string(data.coords[self.time_field].values[0]),
-                _to_datetime_string(data.coords[self.time_field].values[-1])
-            ],
+            "time": time,
             "driver": "xarray",
             "height": height,
             "width": width,
             "time_steps": data.dims[self.time_field],
-            "time_values": list(map(lambda dt: str(dt), data.coords[self.time_field].to_numpy())),
+            #"time_values": list(map(lambda dt: str(dt), data.coords[self.time_field].to_numpy())),
             "variables": {var_name: var.attrs
                           for var_name, var in data.variables.items()}
         }
@@ -193,11 +204,13 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
 
         datetime_ = kwargs.get('datetime_')
         if datetime_ is not None:
+
             if '/' in datetime_:
                 dts = datetime_.split('/')
                 query_params[self._coverage_properties['time_axis_label']] = slice(pd.to_datetime(dts[0]) ,pd.to_datetime(dts[1])) # noqa    
             else:
                 query_params[self._coverage_properties['time_axis_label']] = datetime_  # noqa
+
 
         LOGGER.debug(f'query parameters: {query_params}')
 
@@ -212,11 +225,9 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
         except KeyError:
             raise ProviderNoDataError()
 
-        if len(data.coords[self.time_field].values) < 1:
-            raise ProviderNoDataError()
-
         height = data.dims[self.y_field]
         width = data.dims[self.x_field]
+        time, time_steps = self._parse_time_metadata(data, kwargs)
 
         out_meta = {
             'bbox': [
@@ -225,17 +236,74 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
                 data.coords[self.x_field].values[-1],
                 data.coords[self.y_field].values[-1]
             ],
-            "time": [
-                _to_datetime_string(data.coords[self.time_field].values[0]),
-                _to_datetime_string(data.coords[self.time_field].values[-1])
-            ],
+            "time": time,
             "driver": "xarray",
             "height": height,
             "width": width,
+
             "time_steps": data.dims[self.time_field],
             "time_values": list(map(lambda dt: str(dt), data.coords[self.time_field].to_numpy())),
+
             "variables": {var_name: var.attrs
                           for var_name, var in data.variables.items()}
         }
 
         return self.gen_covjson(out_meta, data, self.fields)
+
+    def _make_datetime(self, datetime_):
+        """
+        Make xarray datetime query
+
+        :param datetime_: temporal (datestamp or extent)
+
+        :returns: xarray datetime query
+        """
+        datetime_ = datetime_.rstrip('Z').replace('Z/', '/')
+        if '/' in datetime_:
+            begin, end = datetime_.split('/')
+            if begin == '..':
+                begin = self._data[self.time_field].min().values
+            if end == '..':
+                end = self._data[self.time_field].max().values
+            if np.datetime64(begin) < np.datetime64(end):
+                return slice(begin, end)
+            else:
+                LOGGER.debug('Reversing slicing from high to low')
+                return slice(end, begin)
+        else:
+            return datetime_
+
+    def _get_time_range(self, data):
+        """
+        Make xarray dataset temporal extent
+
+        :param data: xarray dataset
+
+        :returns: list of temporal extent
+        """
+        time = data.coords[self.time_field]
+        if time.size == 0:
+            raise ProviderNoDataError()
+        else:
+            start = _to_datetime_string(data[self.time_field].values.min())
+            end = _to_datetime_string(data[self.time_field].values.max())
+        return [start, end]
+
+    def _parse_time_metadata(self, data, kwargs):
+        """
+        Parse time information for output metadata.
+
+        :param data: xarray dataset
+        :param kwargs: dictionary
+
+        :returns: list of temporal extent, number of timesteps
+        """
+        try:
+            time = self._get_time_range(data)
+        except KeyError:
+            time = []
+        try:
+            time_steps = data.coords[self.time_field].size
+        except KeyError:
+            time_steps = kwargs.get('limit')
+        return time, time_steps

@@ -28,11 +28,14 @@
 # =================================================================
 
 import logging
-from typing import Any, Tuple
+from typing import Any, Dict, Optional, Tuple
+import uuid
 
-from pygeoapi.process.base import BaseProcessor
 from pygeoapi.process.manager.base import BaseManager
-from pygeoapi.util import JobStatus
+from pygeoapi.util import (
+    RequestedProcessExecutionMode,
+    JobStatus,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -63,27 +66,37 @@ class DummyManager(BaseManager):
 
         return []
 
-    def execute_process(self, p: BaseProcessor, job_id: str, data_dict: dict,
-                        is_async: bool = False) -> Tuple[str, Any, int]:
+    def execute_process(
+            self,
+            process_id: str,
+            data_dict: dict,
+            execution_mode: Optional[RequestedProcessExecutionMode] = None
+    ) -> Tuple[str, str, Any, JobStatus, Optional[Dict[str, str]]]:
         """
         Default process execution handler
 
-        :param p: `pygeoapi.process` object
-        :param job_id: job identifier
+        :param process_id: process identifier
         :param data_dict: `dict` of data parameters
-        :param is_async: `bool` specifying sync or async processing.
+        :param execution_mode: requested execution mode
 
-        :returns: tuple of MIME type, response payload and status
+        :returns: tuple of job_id, MIME type, response payload, status and
+                  optionally additional HTTP headers to include in the
+                  response
         """
 
         jfmt = 'application/json'
 
-        if is_async:
-            LOGGER.debug('Dummy manager does not support asynchronous')
-            LOGGER.debug('Forcing synchronous execution')
+        response_headers = None
+        if execution_mode is not None:
+            response_headers = {
+                'Preference-Applied': RequestedProcessExecutionMode.wait.value}
+            if execution_mode == RequestedProcessExecutionMode.respond_async:
+                LOGGER.debug('Dummy manager does not support asynchronous')
+                LOGGER.debug('Forcing synchronous execution')
 
+        processor = self.get_processor(process_id)
         try:
-            jfmt, outputs = p.execute(data_dict)
+            jfmt, outputs = processor.execute(data_dict)
             current_status = JobStatus.successful
         except Exception as err:
             outputs = {
@@ -92,8 +105,8 @@ class DummyManager(BaseManager):
             }
             current_status = JobStatus.failed
             LOGGER.error(err)
-
-        return jfmt, outputs, current_status
+        job_id = str(uuid.uuid1())
+        return job_id, jfmt, outputs, current_status, response_headers
 
     def __repr__(self):
         return f'<DummyManager> {self.name}'
