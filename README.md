@@ -1,6 +1,5 @@
 # pygeoapi
-
-This software is the unofficial pygeoapi.io im[;ementation for the Iliad - digital Twin of the Ocean project.
+This software is the unofficial pygeoapi.io impementation for the Iliad - digital Twin of the Ocean project.
 Some changes implemented here will hopefully land in the mainstream implementation, but authors do not take responsibility for potential incompliance.
 
 [![Build](https://github.com/geopython/pygeoapi/actions/workflows/main.yml/badge.svg)](https://github.com/geopython/pygeoapi/actions/workflows/main.yml)

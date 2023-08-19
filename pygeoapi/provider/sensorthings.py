@@ -271,7 +271,7 @@ class SensorThingsProvider(BaseProvider):
                 v.extend(response['value'])
             except (ProviderConnectionError, KeyError):
                 break
-
+        
         hits_ = min(limit, len(v))
         
         props = (select_properties, skip_geometry)
