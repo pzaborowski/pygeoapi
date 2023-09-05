@@ -55,7 +55,7 @@ server:
     # ogc_schemas_location: /opt/schemas.opengis.net
     
 logging:
-    level: ERROR
+    level: DEBUG
     #logfile: /tmp/pygeoapi.log
 metadata:
     identification:
@@ -237,17 +237,17 @@ resources:
             - type: app/json
               rel: canonical
               hreflang: en-US
-              href: http://localhost:5003/collections/swan-edr/position?coords=POINT(11.0 36.0)&datetime=2023-07-16T02:00Z/2023-07-16T02:00Z&f=json&layer=significant_wave_height
+              href: http://localhost:5003/collections/swan2-edr/position?coords=POINT(11.0 36.0)&datetime=2023-07-16T02:00Z/2023-07-16T02:00Z&f=json&layer=significant_wave_height
               title: example json query significant_wave_height by POINT(11.0 36.0) coordinates and time slice 2023-07-16T02:00Z - 2023-07-16T02:00Z
             - type: text/html
               rel: canonical
               hreflang: en-US
-              href: http://localhost:5003/collections/swan-edr/cube?bbox=10.4,35.5,11.26,36.31&datetime=2023-07-16T02:00Z/2023-07-16T02:00Z&layer=significant_wave_height
+              href: http://localhost:5003/collections/swan2-edr/cube?bbox=10.4,35.5,11.26,36.31&datetime=2023-07-16T02:00Z/2023-07-16T02:00Z&layer=significant_wave_height
               title: example html query significant_wave_height by 2D bbox (10.4,35.5,11.26,36.31) coordinates and time slice 2023-07-16T02:00Z - 2023-07-16T02:00Z
             - type: text/html
               rel: canonical
               hreflang: en-US
-              href: http://localhost:5003/collections/swan-edr/position?coords=POINT(11.0 36.0)&datetime=2023-07-16T02:00Z/2023-07-16T02:00Z&layer=significant_wave_height
+              href: http://localhost:5003/collections/swan2-edr/position?coords=POINT(11.0 36.0)&datetime=2023-07-16T02:00Z/2023-07-16T02:00Z&layer=significant_wave_height
               title: example html query significant_wave_height by POINT(11.0 36.0) coordinates and time slice 2023-07-16T02:00Z - 2023-07-16T02:00Z
         providers:
             - type: edr

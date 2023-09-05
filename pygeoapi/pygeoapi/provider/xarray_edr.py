@@ -247,7 +247,18 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
             "variables": {var_name: var.attrs
                           for var_name, var in data.variables.items()}
         }
-
+        if format_ == 'json':
+            LOGGER.debug('Creating output in CoverageJSON')
+            return self.gen_covjson(out_meta, data, self.fields)
+        elif format_ == 'zarr':
+            LOGGER.debug('Returning data in native zarr format')
+            return self._get_zarr_data(data)
+        elif format_ == 'netcdf':
+            with tempfile.TemporaryFile() as fp:
+                LOGGER.debug('Returning data in native NetCDF format')
+                fp.write(data.to_netcdf())
+                fp.seek(0)
+                return fp.read()
         return self.gen_covjson(out_meta, data, self.fields)
 
     def _make_datetime(self, datetime_):

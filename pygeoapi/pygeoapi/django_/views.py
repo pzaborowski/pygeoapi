@@ -438,7 +438,7 @@ def get_collection_edr_query(request: HttpRequest, collection_id: str,
 
     :returns: Django HTTP response
     """
-
+    LOGGER.Debug("get_collection_edr_query")
     query_type = request.path.split('/')[-1]
     response_ = _feed_response(
         request,
