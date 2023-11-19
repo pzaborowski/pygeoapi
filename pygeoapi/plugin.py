@@ -61,6 +61,7 @@ PLUGINS = {
         'xarray': 'pygeoapi.provider.xarray_.XarrayProvider',
         'xarray-edr': 'pygeoapi.provider.xarray_edr.XarrayEDRProvider',
         'wcs-edr': 'pygeoapi.provider.wcs_edr.WCS2EDRApiProvider',
+        'influx-edr': 'pygeoapi.provider.influx_edr.InfluxEDRProvider',
     },
     'formatter': {
         'CSV': 'pygeoapi.formatter.csv_.CSVFormatter'
