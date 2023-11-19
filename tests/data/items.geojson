@@ -151,7 +151,7 @@
           ]
       },
       "properties": {
-        "fid": 9,
+        "fid": "9",
         "uri": "http://localhost:5000/collections/objects/items/9",
         "name": "GeometryCollection"
       }
