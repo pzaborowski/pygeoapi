@@ -1,6 +1,0 @@
-cd pygeoapi
-python setup.py install
-export PYGEOAPI_CONFIG=example-config-observations.yml
-export PYGEOAPI_OPENAPI=example-openapi.yml
-pygeoapi openapi generate $PYGEOAPI_CONFIG > $PYGEOAPI_OPENAPI
-pygeoapi serve
