@@ -1,8 +1,0 @@
-.git
-.github
-.pytest_cache
-build
-dist
-docs
-pygeoapi.egg-info
-
