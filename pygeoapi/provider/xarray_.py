@@ -142,11 +142,16 @@ class XarrayProvider(BaseProvider):
                 }
             },
             '_meta': {
-                'tags': self._data.attrs
+                'tags': dict(map(self._sanitize_ndarray_attr, var.attrs.items()))
             }
         }
 
         return domainset
+
+    def _sanitize_ndarray_attr(self, attribute):
+        if type(attribute[1]) is numpy.ndarray:
+            return attribute[0], list(attribute[1])
+        return attribute[0], attribute[1]
 
     def get_coverage_rangetype(self, *args, **kwargs):
         """
