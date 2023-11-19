@@ -77,6 +77,7 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
         """
         return self.get_coverage_rangetype()
 
+
     def _read_datetime_qparam(self, kwargs, query_params):
         datetime_ = kwargs.get('datetime_')
         if datetime_ is not None:
@@ -107,14 +108,11 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
                 pass
         return wkt
 
-    def query(self, properties=[], subsets={}, bbox=[], bbox_crs=4326,
-              datetime_=None, format_='json', **kwargs):
-        if kwargs['query_type'] == 'cube':
-            return self.cube(properties, subsets, bbox, bbox_crs, datetime_, format_, **kwargs)
 
     @BaseEDRProvider.register()
     def cube(self, properties=[], subsets={}, bbox=[], bbox_crs=4326,
               datetime_=None, format_='json', **kwargs):
+
         """
         Extract data from collection
 
@@ -133,6 +131,7 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
         LOGGER.debug(f'Query parameters: {kwargs}')
         LOGGER.debug(f"Query type: {kwargs.get('query_type')}")
 
+
         self._read_bbox_qparam(bbox, query_params)
         filtered_locations = self.filter_locations(self.locations, query_params['cube'])
         start, stop = self._make_datetime(datetime_)
@@ -141,6 +140,7 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
 
         # example of fetching instance passed
         # TODO: apply accordingly, not supported for the moment
+
         instance = kwargs.get('instance')
         LOGGER.debug(f'instance: {instance}')
 

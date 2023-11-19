@@ -117,8 +117,34 @@ class InfluxDBProvider(BaseProvider):
                                 'tags': 'None'
                             }
                         })
-        LOGGER.debug("rangetype: " + str(rangetype))
         return rangetype
+
+
+    @crs_transform
+    def query(self, offset=0, limit=10, resulttype='results',
+              bbox=[], datetime_=None, properties=[], sortby=[],
+              select_properties=[], skip_geometry=False, q=None, **kwargs):
+        """
+        CSV query
+
+        :param offset: starting record to return (default 0)
+        :param limit: number of records to return (default 10)
+        :param resulttype: return results or hit limit (default results)
+        :param bbox: bounding box [minx,miny,maxx,maxy]
+        :param datetime_: temporal (datestamp or extent)
+        :param properties: list of tuples (name, value)
+        :param sortby: list of dicts (property, order)
+        :param select_properties: list of property names
+        :param skip_geometry: bool of whether to skip geometry (default False)
+        :param q: full-text search term(s)
+
+        :returns: dict of GeoJSON FeatureCollection
+        """
+
+        return self._load(offset, limit, resulttype,
+                          properties=properties,
+                          select_properties=select_properties,
+                          skip_geometry=skip_geometry)
 
     @crs_transform
     def get(self, identifier, **kwargs):

@@ -7,7 +7,7 @@ import os
 import sys
 
 sys.path.append(os.path.abspath("/Users/piotr/repos/pzaborowski/pygeoapi/pygeoapi/pygeoapi/formatter"))
-# from covjson_utils import *
+from covjson_utils import *
 
 token = os.environ.get('SINTEF_influx_token')
 url = "https://oceanlab.azure.sintef.no:8086"
