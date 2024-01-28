@@ -22,3 +22,4 @@ unicodecsv
 xarray
 netcdf4
 zarr
+influxdb_client

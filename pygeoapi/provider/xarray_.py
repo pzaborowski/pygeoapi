@@ -39,6 +39,8 @@ import fsspec
 import numpy as np
 import pandas as pd
 import json
+import numpy
+from numpy import ndarray
 
 from pygeoapi.provider.base import (BaseProvider,
                                     ProviderConnectionError,
@@ -155,7 +157,7 @@ class XarrayProvider(BaseProvider):
                 }
             },
             '_meta': {
-                'tags': dict(map(self._sanitize_ndarray_attr, var.attrs.items()))
+                'tags': dict(map(self._sanitize_ndarray_attr, self._data.attrs.items()))
             }
         }
 
@@ -202,7 +204,7 @@ class XarrayProvider(BaseProvider):
                         'code': units
                     },
                     '_meta': {
-                        'tags': var.attrs
+                        'tags': dict(map(self._sanitize_ndarray_attr, var.attrs.items()))
                     }
                 })
 

@@ -36,6 +36,21 @@ from pygeoapi.provider.base_edr import BaseEDRProvider
 from pygeoapi.provider.influx_ import InfluxDBProvider
 from pygeoapi.provider.xarray_ import _to_datetime_string, XarrayProvider
 import pandas as pd
+from shapely.geometry import Point, Polygon
+
+from covjson_pydantic.coverage import Coverage, CoverageCollection
+from covjson_pydantic.domain import Domain, Axes, ValuesAxis, DomainType
+from covjson_pydantic.ndarray import NdArray
+from covjson_pydantic.parameter import Parameter
+from covjson_pydantic.unit import Unit, Symbol
+from covjson_pydantic.observed_property import ObservedProperty, Category
+from covjson_pydantic.reference_system import ReferenceSystem, ReferenceSystemConnectionObject
+from covjson_pydantic.i18n import *
+from pydantic import ConfigDict
+from datetime import datetime, timezone
+from pydantic import AwareDatetime
+import json
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -61,7 +76,6 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
         :returns: dict of dicts of parameters
         """
         return self.get_coverage_rangetype()
-
 
     @BaseEDRProvider.register()
     def position(self, **kwargs):
@@ -173,8 +187,14 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
                 pass
         return wkt
 
+    def query(self, properties=[], subsets={}, bbox=[], bbox_crs=4326,
+              datetime_=None, format_='json', **kwargs):
+        if kwargs['query_type'] == 'cube':
+            return self.cube(properties, subsets, bbox, bbox_crs, datetime_, format_, **kwargs)
+
     @BaseEDRProvider.register()
-    def cube(self, **kwargs):
+    def cube(self, properties=[], subsets={}, bbox=[], bbox_crs=4326,
+              datetime_=None, format_='json', **kwargs):
         """
         Extract data from collection
 
@@ -193,62 +213,83 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
         LOGGER.debug(f'Query parameters: {kwargs}')
         LOGGER.debug(f"Query type: {kwargs.get('query_type')}")
 
-        self._read_bbox_qparam(kwargs, query_params)
-
+        self._read_bbox_qparam(bbox, query_params)
+        filtered_locations = self.filter_locations(self.locations, query_params['cube'])
+        start, stop = self._make_datetime(datetime_)
         LOGGER.debug('Processing parameter-name')
-        select_properties = _read_select_parameters_qparam(kwargs)
+        select_properties = kwargs.get('select_properties')
 
         # example of fetching instance passed
-        # TODO: apply accordingly
+        # TODO: apply accordingly, not supported for the moment
         instance = kwargs.get('instance')
         LOGGER.debug(f'instance: {instance}')
 
         datetime_ = self._read_datetime_qparam(kwargs, query_params)
 
-        LOGGER.debug(f'query parameters: {query_params}')
+        LOGGER.debug(f'select parameters: {select_properties}')
+        return self.build_coverages_collection_covj(self.ifc_bucket,
+                                                    start,
+                                                    stop,
+                                                    select_properties,
+                                                    filtered_locations)
 
-        try:
-            if select_properties:
-                self.fields = select_properties
-                data = self._data[[*select_properties]]
-            else:
-                data = self._data
-            data = data.sel(query_params)
-        except KeyError:
-            raise ProviderNoDataError()
 
-        height = data.dims[self.y_field]
-        width = data.dims[self.x_field]
-        time, time_steps, time_values = self._parse_time_metadata(data, kwargs)
+        # try:
+        #     if select_properties:
+        #         self.fields = select_properties
+        #         data = self._data[[*select_properties]]
+        #     else:
+        #         data = self._data
+        #     data = data.sel(query_params)
+        # except KeyError:
+        #     raise ProviderNoDataError()
+        #
+        # height = data.dims[self.y_field]
+        # width = data.dims[self.x_field]
+        # time, time_steps, time_values = self._parse_time_metadata(data, kwargs)
+        #
+        # out_meta = {
+        #     'bbox': [
+        #         data.coords[self.x_field].values[0],
+        #         data.coords[self.y_field].values[0],
+        #         data.coords[self.x_field].values[-1],
+        #         data.coords[self.y_field].values[-1]
+        #     ],
+        #     "time": time,
+        #     "driver": "xarray",
+        #     "height": height,
+        #     "width": width,
+        #
+        #     "time_steps": data.dims[self.time_field],
+        #     "time_values": list(map(lambda dt: str(dt), data.coords[self.time_field].to_numpy())),
+        #
+        #     "variables": {var_name: var.attrs
+        #                   for var_name, var in data.variables.items()}
+        # }
+        #
+        # return self.gen_covjson(out_meta, data, self.fields)
 
-        out_meta = {
-            'bbox': [
-                data.coords[self.x_field].values[0],
-                data.coords[self.y_field].values[0],
-                data.coords[self.x_field].values[-1],
-                data.coords[self.y_field].values[-1]
-            ],
-            "time": time,
-            "driver": "xarray",
-            "height": height,
-            "width": width,
-
-            "time_steps": data.dims[self.time_field],
-            "time_values": list(map(lambda dt: str(dt), data.coords[self.time_field].to_numpy())),
-
-            "variables": {var_name: var.attrs
-                          for var_name, var in data.variables.items()}
-        }
-
-        return self.gen_covjson(out_meta, data, self.fields)
     def _read_select_properties_qparam(self, kwargs, query_params):
         sp = kwargs.get('select_properties')
 
+    def filter_locations(self, locations, shape):
+        filtered_locations = []
+        for l in locations:
+            g = l['location']
+            for gk in g.keys():
+                if gk == 'point':
+                    p = Point(g[gk])
+                elif gk == 'polygon':
+                    p = Polygon(g[gk])
+                if not shape.disjoint(p):
+                    filtered_locations.append(l)
+        return filtered_locations
 
-    def _read_bbox_qparam(self, kwargs, query_params):
-        bbox = kwargs.get('bbox')
+    def _read_bbox_qparam(self, bbox, query_params):
+
         if len(bbox) == 4:
-            query_params['cube'] = Polygon(((bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3]), (bbox[0], bbox[1])))
+            query_params['cube'] = Polygon(
+                ((bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3]), (bbox[0], bbox[1])))
         else:
             raise ProviderQueryError('z-axis not supported in queries')
 
@@ -264,18 +305,150 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
         if '/' in datetime_:
             begin, end = datetime_.split('/')
             if begin == '..':
-                begin = self._data[self.time_field].min().values
+                begin = None
             if end == '..':
-                end = self._data[self.time_field].max().values
+                end = None
             if np.datetime64(begin) < np.datetime64(end):
-                return [begin, end]
+                return begin, end
             else:
                 LOGGER.debug('Reversing slicing from high to low')
                 return [end, begin]
         else:
-            return [datetime_, datetime_]
+            return datetime_, datetime_
 
     def gen_covjson(self):
         """ serialise to covjson representation
             potentially to be replaced byt the formatter
         """
+
+    # bucket, data_table, '2023-05-01T02:25:00Z', '2023-05-01T02:30:00Z'
+    def build_coverages_collection_covj(self, bucket, start_time, stop_time, parameters, locations):
+        _parameters = {}
+        _coverages = []
+        for l in locations:
+            for variable in l['parameters'].keys():
+                coverage = None
+                LOGGER.debug("variable: " + variable + " parameters: " + str(parameters))
+                if variable in parameters:
+                    table_name = l['parameters'][variable]
+                    variables = l['tables'][table_name]
+                    LOGGER.debug("table_name: " + table_name + " variables: " + str(variables))
+                    for p_name in variables.keys():
+                        column = variables[p_name]
+                        LOGGER.debug("p_name: " + p_name + " column: " + column)
+                        if self.parameters_def[p_name]['type'] == 'Quantity':
+                            _parameters[p_name] = \
+                                self.build_covj_property_continuous(self.parameters_def[p_name])
+                        elif self.parameters_def[p_name]['type'] == 'Category':
+                            _parameters[p_name] = \
+                                (self.build_covj_property_category(self.parameters_def[p_name]))
+                    query = self.define_query(self.ifc_bucket, table_name, start_time, stop_time)
+                    data = self.query_to_df(self.ifc_url, self.ifc_token, query)
+                    print(data)
+                    _ranges = {}
+                    for p_name in variables.keys():
+                        column = variables[p_name]
+                        measurement_values = data[column]
+                        if self.parameters_def[p_name]['type'] == 'Quantity':
+                            _ranges[p_name] = self.build_range_continuous(measurement_values)
+                        elif self.parameters_def[p_name]['type'] == 'Category':
+                            _ranges[p_name] = self.build_range_category(measurement_values, self.parameters_def[p_name])
+                    coverage = Coverage(
+                        domain=Domain(
+                            domainType=DomainType.point_series,
+                            referencing=[
+                                ReferenceSystemConnectionObject(
+                                    coordinates=["x", "y"],
+                                    system=ReferenceSystem(type="GeographicCRS",
+                                                           id="http://www.opengis.net/def/crs/OGC/1.3/CRS84")
+                                ),
+                                ReferenceSystemConnectionObject(
+                                    coordinates=["t"],
+                                    system=ReferenceSystem(type="TemporalRS",
+                                                           calendar="Gregorian")
+                                )
+                            ],
+                            axes=Axes(
+                                x=ValuesAxis[float](values=[l['location']['point'][0]]),
+                                y=ValuesAxis[float](values=[l['location']['point'][1]]),
+                                t=ValuesAxis[AwareDatetime](values=data['_time'])
+                            )
+                        ),
+                        ranges=_ranges
+                    )
+                    _coverages.append(coverage)
+                    LOGGER.debug("coverage: " + coverage.model_dump_json(exclude_none=True, indent=4))
+
+        cov = CoverageCollection(
+            domainType=DomainType.point_series,
+            domain=Domain(),
+            coverages=_coverages,
+            parameters=_parameters,
+            referencing=[
+                ReferenceSystemConnectionObject(
+                    coordinates=["x", "y"],
+                    system=ReferenceSystem(type="GeographicCRS",
+                                           id="http://www.opengis.net/def/crs/OGC/1.3/CRS84")
+                ),
+                ReferenceSystemConnectionObject(
+                    coordinates=["t"],
+                    system=ReferenceSystem(type="TemporalRS",
+                                           calendar="Gregorian")
+                )
+            ]
+        )
+        LOGGER.debug("cov: " + cov.model_dump_json(exclude_none=True, indent=4))
+        covo = cov.model_dump(exclude_none=True)
+        covo["@context"] = "http://covjson.org/context.jsonld"
+        return covo
+
+    def build_covj_property_continuous(self, parameter):
+        return Parameter(
+            id=parameter['id'],
+            description={parameter['description_lang']: parameter['description']},
+            unit=Unit(
+                label={parameter['unit_label_lang']: parameter['unit_label']},
+                symbol=Symbol(
+                    value=parameter['unit_symbol'],
+                    type=parameter['unit_type'])
+            ),
+            observedProperty=ObservedProperty(
+                id=parameter['observed_property_id'],
+                label={parameter['observed_property_label_lang']: parameter['observed_property_label']}
+            ),
+            properties=parameter['properties']
+        )
+
+    def build_covj_property_category(self, parameter):
+        categories = []
+        for cat in parameter['observed_property_categories']:
+            categories.append(
+                Category(
+                    id=cat['id'],
+                    label={cat['label_lang']: cat['label']}
+                    # preferredColor = "green"
+                )
+            )
+        return Parameter(
+            id=parameter['id'],
+            label={parameter['label_lang']: parameter['label']},
+            description={parameter['description_lang']: parameter['description']},
+            observedProperty=ObservedProperty(
+                id=parameter['observed_property_id'],
+                label={parameter['observed_property_label_lang']: parameter['observed_property_label']},
+                description={
+                    parameter['observed_property_description_lang']: parameter['observed_property_description']},
+                categories=categories
+            ),
+            properties=parameter['properties'],
+            categoryEncoding=parameter['categoryEncoding']
+        )
+
+    def build_range_continuous(self, values):
+        return NdArray(axisNames=["x", "y", "t"], shape=[1, 1, len(values)],
+                       values=values)
+
+    def build_range_category(self, values, parameter):
+        print(parameter)
+        return NdArray(axisNames=["x", "y", "t"], shape=[1, 1, len(values)],
+                       values=list(map(lambda v: parameter['categoryEncoding'][v], values)))

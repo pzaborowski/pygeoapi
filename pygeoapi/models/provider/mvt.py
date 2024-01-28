@@ -33,10 +33,10 @@ from typing import List, Optional
 
 class VectorLayers(BaseModel):
     id: str
-    description: Optional[str]
-    minzoom: Optional[int]
-    maxzoom: Optional[int]
-    fields: Optional[dict]
+    description: Optional[str] = None
+    minzoom: Optional[int] = None
+    maxzoom: Optional[int] = None
+    fields: Optional[dict] = None
 
 
 class MVTTilesJson(BaseModel):

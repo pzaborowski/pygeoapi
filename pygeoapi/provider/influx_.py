@@ -56,12 +56,12 @@ class InfluxDBProvider(BaseProvider):
         """
 
         super().__init__(provider_def)
-        self.token = os.environ.get(provider_def['data']['token_variable'])
+        self.ifc_token = os.environ.get(provider_def['data']['token_variable'])
         self.ifc_bucket = provider_def['data']['bucket']
         self.ifc_url = provider_def['data']['url']
         self.locations = provider_def['locations']
-        self.parameters = provider_def['parameters']
-
+        self.parameters_def = provider_def['parameters']
+        self.rangetype = None
         self.rangetype = self.get_coverage_rangetype()
         # Store the URL of your InfluxDB instance
         #self.geometry_x = provider_def['geometry']['x_field']
@@ -74,11 +74,15 @@ class InfluxDBProvider(BaseProvider):
 
         :returns: CIS JSON object of rangetype metadata
         """
+        if self.rangetype:
+            return self.rangetype
+
         LOGGER.debug('building parameters rangeset')
         rangetype = {
             'type': 'DataRecord',
             'field': []
         }
+        LOGGER.debug('building parameters self.parameters: ' + str(self.parameters_def))
         for l in self.locations:
             for table_name in l['tables'].keys():
                 LOGGER.debug('building parameters rangeset for table: ' + str(table_name))
@@ -87,7 +91,7 @@ class InfluxDBProvider(BaseProvider):
                 for p_name in variables.keys():
                     LOGGER.debug('building parameters rangeset: ' + p_name)
                     try:
-                        parameter = self.parameters[p_name]
+                        parameter = self.parameters_def[p_name]
                     except:
                         continue
                     LOGGER.debug('parameters rangeset parameter name will be: ' + parameter['name'])
@@ -164,3 +168,47 @@ class InfluxDBProvider(BaseProvider):
 
     def gen_covjson(self):
         Throw("not")
+
+    def define_query(self, bucket, measurement, start_date, end_date):
+        # Set up query, in this example data since start_date to end_date from table {measurement}
+        # :bucket: database name string
+        # :measurement: name of table containing time series
+        # :start_date: startdate as string, e.g. '2023-05-01T00:00:00Z'
+        # :end_date: end_date as string, e.g. '2023-05-02T00:00:00Z'
+        # returns query string in InfluxDbClient form£at
+        if start_date is not None and end_date is not None:
+            query = f'''from(bucket:"{bucket}")
+|> range(start: {start_date}Z , stop: {end_date}Z)
+|> filter(fn:(r) => r._measurement == "{measurement}")
+|> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
+        elif start_date is not None:
+            query = f'''from(bucket:"{bucket}")
+                     |> range(start:-{start_time})
+                     |> filter(fn:(r) => r._measurement == "{measurement}")
+                     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
+        elif end_date is not None:
+            query = f'''from(bucket:"{bucket}")
+                     |> range(stop: {end_date})
+                     |> filter(fn:(r) => r._measurement == "{measurement}")
+                     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
+        else:
+            query = f'''from(bucket:"{bucket}")
+                     |> filter(fn:(r) => r._measurement == "{measurement}")
+                     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
+
+        return query
+
+    def query_to_df(self, url, token, query):
+        # queries database at url with query and returns pandas DataFrame
+        # :url: url to database
+        # :token: username & password
+        # :query: query string in InfluxDbClient format
+        # returns: pandas DataFrame
+
+        LOGGER.debug("influx query: " + query)
+
+        with ifc.InfluxDBClient(url=url, token=token) as client:
+            df = client.query_api().query_data_frame(query)
+
+        # LOGGER.debug("influx query result: " + df)
+        return df

@@ -33,14 +33,14 @@
 # =================================================================
 
 from datetime import date, datetime
+from enum import Enum
 from typing import Any, List, Optional, Union
-from typing_extensions import Literal
 
 from pydantic import BaseModel, Field, RootModel
 
 
-class CQLModel(RootModel):
-    root: 'Union[\n        ComparisonPredicate,\n        SpatialPredicate,\n        TemporalPredicate,\n        AndExpression\n    ]'
+class CQLModel(BaseModel):
+    RootModel: 'Union[\n        ComparisonPredicate,\n        SpatialPredicate,\n        TemporalPredicate,\n        AndExpression\n    ]'
 
 
 class AndExpression(BaseModel):
@@ -59,116 +59,140 @@ class PropertyRef(BaseModel):
     property: 'Optional[str]' = None
 
 
-class ScalarLiteral(RootModel):
-    root: 'Union[str, float, bool]'
+class ScalarLiteral(BaseModel):
+    RootModel: 'Union[str, float, bool]'
 
 
-class Bbox(RootModel):
-    root: 'List[float]'
+class Bbox(BaseModel):
+    RootModel: 'List[float]'
 
 
-class LinestringCoordinate(RootModel):
-    root: 'List[Any]'
+class LineStringType(Enum):
+    LineString = 'LineString'
+
+
+class LinestringCoordinate(BaseModel):
+    RootModel: 'List[Any]'
 
 
 class Linestring(BaseModel):
-    type: Literal['LineString']
+    type: 'LineStringType'
     coordinates: 'List[LinestringCoordinate]' = Field(...)
     bbox: 'Optional[List[float]]' = Field(None)
 
 
-class MultilineStringCoordinate(RootModel):
-    root: 'List[Any]'
+class MultiLineStringType(Enum):
+    MultiLineString = 'MultiLineString'
+
+
+class MultilineStringCoordinate(BaseModel):
+    RootModel: 'List[Any]'
 
 
 class Multilinestring(BaseModel):
-    type: Literal['MultiLineString']
+    type: 'MultiLineStringType'
     coordinates: 'List[List[MultilineStringCoordinate]]'
     bbox: 'Optional[List[float]]' = Field(None)
 
 
+class MultiPointType(Enum):
+    MultiPoint = 'MultiPoint'
+
+
 class Multipoint(BaseModel):
-    type: Literal['MultiPoint']
+    type: 'MultiPointType'
     coordinates: 'List[List[float]]'
     bbox: 'Optional[List[float]]' = Field(None)
 
 
-class MultipolygonCoordinateItem(RootModel):
-    root: 'List[Any]'
+class MultiPolygonType(Enum):
+    MultiPolygon = 'MultiPolygon'
+
+
+class MultipolygonCoordinateItem(BaseModel):
+    RootModel: 'List[Any]'
 
 
 class Multipolygon(BaseModel):
-    type: Literal['MultiPolygon']
+    type: 'MultiPolygonType'
     coordinates: 'List[List[List[MultipolygonCoordinateItem]]]'
     bbox: 'Optional[List[float]]' = Field(None)
 
 
+class PointType(Enum):
+    Point = 'Point'
+
+
 class Point(BaseModel):
-    type: Literal['Point']
+    type: 'PointType'
     coordinates: 'List[float]' = Field(...)
     bbox: 'Optional[List[float]]' = Field(None)
 
 
-class PolygonCoordinatesItem(RootModel):
-    root: 'List[Any]'
+class PolygonType(Enum):
+    Polygon = 'Polygon'
+
+
+class PolygonCoordinatesItem(BaseModel):
+    RootModel: 'List[Any]'
 
 
 class Polygon(BaseModel):
-    type: Literal['Polygon']
+    type: 'PolygonType'
     coordinates: 'List[List[PolygonCoordinatesItem]]'
     bbox: 'Optional[List[float]]' = Field(None)
 
 
-class TimeString(RootModel):
-    root: 'Union[date, datetime]'
+class TimeString(BaseModel):
+    RootModel: 'Union[date, datetime]'
 
 
 class EnvelopeLiteral(BaseModel):
     bbox: 'Bbox'
 
 
-class GeometryLiteral(RootModel):
-    root: 'Union[\n        Point, Linestring, Polygon, Multipoint, Multilinestring, Multipolygon\n    ]'
+class GeometryLiteral(BaseModel):
+    RootModel: 'Union[\n        Point, Linestring, Polygon, Multipoint, Multilinestring, Multipolygon\n    ]'
 
 
 class TypedTimeString(BaseModel):
     datetime: 'TimeString'
 
 
-class PeriodString(RootModel):
-    root: 'List[Union[TimeString, str]]' = Field(...)
+class PeriodString(BaseModel):
+    RootModel: 'List[Union[TimeString, str]]' = Field(...)
 
 
-class SpatialLiteral(RootModel):
-    root: 'Union[GeometryLiteral, EnvelopeLiteral]'
+class SpatialLiteral(BaseModel):
+    RootModel: 'Union[GeometryLiteral, EnvelopeLiteral]'
 
 
-class TemporalLiteral(RootModel):
-    root: 'Union[TimeString, PeriodString]'
+class TemporalLiteral(BaseModel):
+    RootModel: 'Union[TimeString, PeriodString]'
 
 
 class TypedPeriodString(BaseModel):
     datetime: 'PeriodString'
 
 
-class TypedTemporalLiteral(RootModel):
-    root: 'Union[TypedTimeString, TypedPeriodString]'
+class TypedTemporalLiteral(BaseModel):
+    RootModel: 'Union[TypedTimeString, TypedPeriodString]'
 
 
-class ArrayPredicate(RootModel):
-    root: 'Union[\n        AequalsExpression,\n        AcontainsExpression,\n        AcontainedByExpression,\n        AoverlapsExpression,\n    ]'
+class ArrayPredicate(BaseModel):
+    RootModel: 'Union[\n        AequalsExpression,\n        AcontainsExpression,\n        AcontainedByExpression,\n        AoverlapsExpression,\n    ]'
 
 
-class ComparisonPredicate(RootModel):
-    root: 'Union[\n        BinaryComparisonPredicate,\n        IsLikePredicate,\n        IsBetweenPredicate,\n        IsInListPredicate,\n        IsNullPredicate,\n    ]'
+class ComparisonPredicate(BaseModel):
+    RootModel: 'Union[\n        BinaryComparisonPredicate,\n        IsLikePredicate,\n        IsBetweenPredicate,\n        IsInListPredicate,\n        IsNullPredicate,\n    ]'
 
 
-class SpatialPredicate(RootModel):
-    root: 'Union[\n        IntersectsExpression,\n        EqualsExpression,\n        DisjointExpression,\n        TouchesExpression,\n        WithinExpression,\n        OverlapsExpression,\n        CrossesExpression,\n        ContainsExpression,\n    ]'
+class SpatialPredicate(BaseModel):
+    RootModel: 'Union[\n        IntersectsExpression,\n        EqualsExpression,\n        DisjointExpression,\n        TouchesExpression,\n        WithinExpression,\n        OverlapsExpression,\n        CrossesExpression,\n        ContainsExpression,\n    ]'
 
 
-class TemporalPredicate(RootModel):
-    root: 'Union[\n        BeforeExpression,\n        AfterExpression,\n        MeetsExpression,\n        MetbyExpression,\n        ToverlapsExpression,\n        OverlappedbyExpression,\n        BeginsExpression,\n        BegunbyExpression,\n        DuringExpression,\n        TcontainsExpression,\n        EndsExpression,\n        EndedbyExpression,\n        TequalsExpression,\n        AnyinteractsExpression,\n    ]'
+class TemporalPredicate(BaseModel):
+    RootModel: 'Union[\n        BeforeExpression,\n        AfterExpression,\n        MeetsExpression,\n        MetbyExpression,\n        ToverlapsExpression,\n        OverlappedbyExpression,\n        BeginsExpression,\n        BegunbyExpression,\n        DuringExpression,\n        TcontainsExpression,\n        EndsExpression,\n        EndedbyExpression,\n        TequalsExpression,\n        AnyinteractsExpression,\n    ]'
 
 
 class AcontainedByExpression(BaseModel):
@@ -207,8 +231,8 @@ class BegunbyExpression(BaseModel):
     begunby: 'TemporalOperands'
 
 
-class BinaryComparisonPredicate(RootModel):
-    root: 'Union[\n        EqExpression, LtExpression, GtExpression, LteExpression, GteExpression\n    ]'
+class BinaryComparisonPredicate(BaseModel):
+    RootModel: 'Union[\n        EqExpression, LtExpression, GtExpression, LteExpression, GteExpression\n    ]'
 
 
 class ContainsExpression(BaseModel):
@@ -245,8 +269,8 @@ class IntersectsExpression(BaseModel):
 
 class Between(BaseModel):
     value: 'ValueExpression'
-    lower: 'Optional[ScalarExpression]' = Field(None)
-    upper: 'Optional[ScalarExpression]' = Field(None)
+    lower: 'ScalarExpression' = Field(None)
+    upper: 'ScalarExpression' = Field(None)
 
 
 class IsBetweenPredicate(BaseModel):
@@ -311,8 +335,8 @@ class WithinExpression(BaseModel):
     within: 'SpatialOperands'
 
 
-class ArrayExpression(RootModel):
-    root: 'List[Union[PropertyRef, FunctionRef, ArrayLiteral]]' = Field(
+class ArrayExpression(BaseModel):
+    RootModel: 'List[Union[PropertyRef, FunctionRef, ArrayLiteral]]' = Field(
         ...  # , max_items=2, min_items=2
     )
 
@@ -337,55 +361,53 @@ class LteExpression(BaseModel):
     lte: 'ScalarOperands'
 
 
-class ScalarExpression(RootModel):
-    root: 'Union[ScalarLiteral, PropertyRef,\n                    FunctionRef, ArithmeticExpression]'
+class ScalarExpression(BaseModel):
+    RootModel: 'Union[ScalarLiteral, PropertyRef,\n                    FunctionRef, ArithmeticExpression]'
 
 
-class ScalarOperands(RootModel):
-    root: 'List[ScalarExpression]' = Field(...)
+class ScalarOperands(BaseModel):
+    RootModel: 'List[ScalarExpression]' = Field(...)
 
 
-class SpatialOperands(RootModel):
-    root: 'List[GeomExpression]' = Field(...)
+class SpatialOperands(BaseModel):
+    RootModel: 'List[GeomExpression]' = Field(...)
 
 
-class TemporalOperands(RootModel):
-    root: 'List[TemporalExpression]' = Field(...)
+class TemporalOperands(BaseModel):
+    RootModel: 'List[TemporalExpression]' = Field(...)
     # , max_items=2, min_items=2)
 
 
-class ValueExpression(RootModel):
-    root: 'Union[ScalarExpression, SpatialLiteral, TypedTemporalLiteral]'
+class ValueExpression(BaseModel):
+    RootModel: 'Union[ScalarExpression, SpatialLiteral, TypedTemporalLiteral]'
 
 
-class ArithmeticExpression(RootModel):
-    root: 'Union[AddExpression, SubExpression, MulExpression, DivExpression]'
+class ArithmeticExpression(BaseModel):
+    RootModel: 'Union[AddExpression, SubExpression, MulExpression, DivExpression]'
 
 
-class ArrayLiteral(RootModel):
-    root: 'List[\n        Union[\n            ScalarLiteral,\n            SpatialLiteral,\n            TypedTemporalLiteral,\n            PropertyRef,\n            FunctionRef,\n            ArithmeticExpression,\n            ArrayLiteral,\n        ]\n    ]'
+class ArrayLiteral(BaseModel):
+    RootModel: 'List[\n        Union[\n            ScalarLiteral,\n            SpatialLiteral,\n            TypedTemporalLiteral,\n            PropertyRef,\n            FunctionRef,\n            ArithmeticExpression,\n            ArrayLiteral,\n        ]\n    ]'
 
 
 class FunctionRef(BaseModel):
     function: 'Function'
 
 
-class GeomExpression(RootModel):
-    root: 'Union[SpatialLiteral, PropertyRef, FunctionRef]'
+class GeomExpression(BaseModel):
+    RootModel: 'Union[SpatialLiteral, PropertyRef, FunctionRef]'
 
 
-class TemporalExpression(RootModel):
-    root: 'Union[TemporalLiteral, PropertyRef, FunctionRef]'
+class TemporalExpression(BaseModel):
+    RootModel: 'Union[TemporalLiteral, PropertyRef, FunctionRef]'
 
 
-# here
 class AddExpression(BaseModel):
-    add_: 'ArithmeticOperands' = Field(..., alias='+')
+    i_: 'ArithmeticOperands' = Field(..., alias='+')
 
 
-# here
 class DivExpression(BaseModel):
-    div_: 'Optional[ArithmeticOperands]' = Field(None, alias='/')
+    i_: 'Optional[ArithmeticOperands]' = Field(None, alias='/')
 
 
 class Function(BaseModel):
@@ -393,78 +415,76 @@ class Function(BaseModel):
     arguments: 'Optional[\n        List[\n            Union[\n                ScalarLiteral,\n                SpatialLiteral,\n                TypedTemporalLiteral,\n                PropertyRef,\n                FunctionRef,\n                ArithmeticExpression,\n                ArrayLiteral,\n            ]\n        ]\n    ]' = None
 
 
-# here
 class MulExpression(BaseModel):
-    mul_: 'ArithmeticOperands' = Field(..., alias='*')
+    i_: 'ArithmeticOperands' = Field(..., alias='*')
 
 
-# here
 class SubExpression(BaseModel):
-    sub_: 'ArithmeticOperands' = Field(..., alias='-')
+    i_: 'ArithmeticOperands' = Field(..., alias='-')
 
 
-class ArithmeticOperands(RootModel):
-    root: 'List[\n        Union[ArithmeticExpression, PropertyRef, FunctionRef, float]\n    ]' = Field(...)
+class ArithmeticOperands(BaseModel):
+    RootModel: 'List[\n        Union[ArithmeticExpression, PropertyRef, FunctionRef, float]\n    ]' = Field(...)
 
 
-CQLModel.model_rebuild()
-AndExpression.model_rebuild()
-ArrayPredicate.model_rebuild()
-ComparisonPredicate.model_rebuild()
-SpatialPredicate.model_rebuild()
-TemporalPredicate.model_rebuild()
-AcontainedByExpression.model_rebuild()
-AcontainsExpression.model_rebuild()
-AequalsExpression.model_rebuild()
-AfterExpression.model_rebuild()
-AnyinteractsExpression.model_rebuild()
-AoverlapsExpression.model_rebuild()
-BeforeExpression.model_rebuild()
-BeginsExpression.model_rebuild()
-BegunbyExpression.model_rebuild()
-BinaryComparisonPredicate.model_rebuild()
-ContainsExpression.model_rebuild()
-CrossesExpression.model_rebuild()
-DisjointExpression.model_rebuild()
-DuringExpression.model_rebuild()
-EndedbyExpression.model_rebuild()
-EndsExpression.model_rebuild()
-EqualsExpression.model_rebuild()
-IntersectsExpression.model_rebuild()
-Between.model_rebuild()
-In.model_rebuild()
-IsBetweenPredicate.model_rebuild()
-IsLikePredicate.model_rebuild()
-IsNullPredicate.model_rebuild()
-ValueExpression.model_rebuild()
-MeetsExpression.model_rebuild()
-MetbyExpression.model_rebuild()
-OverlappedbyExpression.model_rebuild()
-OverlapsExpression.model_rebuild()
-TcontainsExpression.model_rebuild()
-TequalsExpression.model_rebuild()
-TouchesExpression.model_rebuild()
-ToverlapsExpression.model_rebuild()
-WithinExpression.model_rebuild()
-ArrayExpression.model_rebuild()
-EqExpression.model_rebuild()
-GtExpression.model_rebuild()
-GteExpression.model_rebuild()
-LtExpression.model_rebuild()
-LteExpression.model_rebuild()
-ScalarExpression.model_rebuild()
-ScalarOperands.model_rebuild()
-SpatialOperands.model_rebuild()
-TemporalOperands.model_rebuild()
-ArithmeticExpression.model_rebuild()
-ArrayLiteral.model_rebuild()
-ScalarLiteral.model_rebuild()
-PropertyRef.model_rebuild()
-FunctionRef.model_rebuild()
-AddExpression.model_rebuild()
-DivExpression.model_rebuild()
-MulExpression.model_rebuild()
-SubExpression.model_rebuild()
+CQLModel.update_forward_refs()
+AndExpression.update_forward_refs()
+ArrayPredicate.update_forward_refs()
+ComparisonPredicate.update_forward_refs()
+SpatialPredicate.update_forward_refs()
+TemporalPredicate.update_forward_refs()
+AcontainedByExpression.update_forward_refs()
+AcontainsExpression.update_forward_refs()
+AequalsExpression.update_forward_refs()
+AfterExpression.update_forward_refs()
+AnyinteractsExpression.update_forward_refs()
+AoverlapsExpression.update_forward_refs()
+BeforeExpression.update_forward_refs()
+BeginsExpression.update_forward_refs()
+BegunbyExpression.update_forward_refs()
+BinaryComparisonPredicate.update_forward_refs()
+ContainsExpression.update_forward_refs()
+CrossesExpression.update_forward_refs()
+DisjointExpression.update_forward_refs()
+DuringExpression.update_forward_refs()
+EndedbyExpression.update_forward_refs()
+EndsExpression.update_forward_refs()
+EqualsExpression.update_forward_refs()
+IntersectsExpression.update_forward_refs()
+Between.update_forward_refs()
+In.update_forward_refs()
+IsBetweenPredicate.update_forward_refs()
+IsLikePredicate.update_forward_refs()
+IsNullPredicate.update_forward_refs()
+ValueExpression.update_forward_refs()
+MeetsExpression.update_forward_refs()
+MetbyExpression.update_forward_refs()
+OverlappedbyExpression.update_forward_refs()
+OverlapsExpression.update_forward_refs()
+TcontainsExpression.update_forward_refs()
+TequalsExpression.update_forward_refs()
+TouchesExpression.update_forward_refs()
+ToverlapsExpression.update_forward_refs()
+WithinExpression.update_forward_refs()
+ArrayExpression.update_forward_refs()
+EqExpression.update_forward_refs()
+GtExpression.update_forward_refs()
+GteExpression.update_forward_refs()
+LtExpression.update_forward_refs()
+LteExpression.update_forward_refs()
+ScalarExpression.update_forward_refs()
+ScalarOperands.update_forward_refs()
+SpatialOperands.update_forward_refs()
+TemporalOperands.update_forward_refs()
+ArithmeticExpression.update_forward_refs()
+ArrayLiteral.update_forward_refs()
+ScalarLiteral.update_forward_refs()
+PropertyRef.update_forward_refs()
+FunctionRef.update_forward_refs()
+AddExpression.update_forward_refs()
+DivExpression.update_forward_refs()
+MulExpression.update_forward_refs()
+SubExpression.update_forward_refs()
 
 
 def get_next_node(obj):
@@ -479,25 +499,25 @@ def get_next_node(obj):
         next_node = obj.not_
         logical_op = 'not'
     elif obj.__repr_name__() == 'ComparisonPredicate':
-        next_node = obj.root
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'SpatialPredicate':
-        next_node = obj.root
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'TemporalPredicate':
-        next_node = obj.root
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'IsBetweenPredicate':
         next_node = obj.between
     elif obj.__repr_name__() == 'Between':
         next_node = obj.value
     elif obj.__repr_name__() == 'ValueExpression':
-        next_node = obj.root or obj.lower or obj.upper
+        next_node = obj.RootModel or obj.lower or obj.upper
     elif obj.__repr_name__() == 'ScalarExpression':
-        next_node = obj.root
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'ScalarLiteral':
-        next_node = obj.root
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'PropertyRef':
         next_node = obj.property
     elif obj.__repr_name__() == 'BinaryComparisonPredicate':
-        next_node = obj.root
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'EqExpression':
         next_node = obj.eq
         logical_op = 'eq'
