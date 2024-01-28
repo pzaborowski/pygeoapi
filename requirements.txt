@@ -5,7 +5,7 @@ Flask
 importlib_metadata
 jinja2
 jsonschema
-pydantic<2.0
+pydantic
 pygeofilter
 pygeoif
 pyproj
@@ -21,3 +21,4 @@ unicodecsv
 xarray
 netcdf4
 zarr
+influxdb_client

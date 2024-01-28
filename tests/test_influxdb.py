@@ -7,7 +7,7 @@ import os
 import sys
 
 sys.path.append(os.path.abspath("/Users/piotr/repos/pzaborowski/pygeoapi/pygeoapi/pygeoapi/formatter"))
-from covjson_utils import *
+# from covjson_utils import *
 
 token = os.environ.get('SINTEF_influx_token')
 url = "https://oceanlab.azure.sintef.no:8086"
@@ -73,6 +73,7 @@ def define_query(bucket, measurement, start_date, end_date):
 
 
 def define_query_interval2(bucket, measurement, start_date, end_date):
+
     query = f'''from(bucket:"{bucket}")
  |> range(start: {start_date} , stop: {end_date})
  |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
@@ -83,6 +84,11 @@ data_table = 'ctd_temperature_munkholmen'
 result_column = 'temperature'
 
 query = define_query(bucket, data_table, '2023-05-01T02:25:00Z', '2023-05-01T02:30:00Z')
+query = f'''from(bucket:"oceanlab")
+|> range(start: 2023-05-01T02:30:00Z , stop: 2023-05-01T12:00:00Z)
+|> filter(fn:(r) => r._measurement == "ctd_temperature_munkholmen")
+|> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
+print("query: " + str(query))
 data = query_to_df(url, token, query)
 
 
@@ -181,9 +187,9 @@ approved_map = {"yes": 1, "no": 0}
 from shapely.geometry import Point
 
 locations = [{
-    "name": "munkholmen", "geometry": {"point": {"x": 11.6646684, "y": 58.9355841}}, "tables": {
+    "name": "munkholmen", "geometry": {"point": (11.6646684, 58.9355841)}, "tables": {
         'ctd_temperature_munkholmen': {'sea_water_temperature': 'temperature', 'approved': 'approved'},
-        'ctd_salinity_munkholmen': {'sea_water_salinity': 'salinity', 'approved': 'approved'}
+        # 'ctd_salinity_munkholmen': {'sea_water_salinity': 'salinity', 'approved': 'approved'}
         #    "sensor_depth":"ctd_depth_munkholmen",
         #    "sensor_position": "meteo_position_munkholmen",
         #    "wind_speed":"meteo_wind_speed_munkholmen",
@@ -191,9 +197,11 @@ locations = [{
         #    "air_temperature":"meteo_temperature_munkholmen",
     }},
     {
-        "name": "other", "location": {"point": {"x": 11.6646684, "y": 60.9355841}}, "tables": {
+        "name": "other", "geometry": {"polygon": [[11,58],[11,59],
+                                                  [12,59],[12,58],
+                                                  [11,58]]}, "tables": {
         'ctd_temperature_munkholmen': {'sea_water_temperature': 'temperature', 'approved': 'approved'},
-        'ctd_salinity_munkholmen': {'sea_water_salinity': 'salinity', 'approved': 'approved'}
+        # 'ctd_salinity_munkholmen': {'sea_water_salinity': 'salinity', 'approved': 'approved'}
         # "sensor_depth": "ctd_depth_munkholmen",
         # "sensor_position": "meteo_position_munkholmen",
         # "wind_speed": "meteo_wind_speed_munkholmen",
@@ -201,8 +209,9 @@ locations = [{
         # "air_temperature": "meteo_temperature_munkholmen",
     }}
 ]
-parameters_def = {"sea_water_temperature":
-                      {"type": "Quantity",
+parameters_def = {"sea_water_temperature":{
+                      "id":"sea_water_temperature",
+                       "type": "Quantity",
                        "cj_type": "PointSeries",
                        "name": "sea_water_temperature",
                        "data_type": "float",
@@ -213,10 +222,23 @@ parameters_def = {"sea_water_temperature":
                        "unit_symbol": "Cel",
                        "unit_type": "http://www.opengis.net/def/uom/UCUM/",
                        "observed_property_id": "http://vocab.nerc.ac.uk/standard_name/sea_water_temperature/",
+                       "observed_property_label": "Sea Water temperature",
+                       "observed_property_label_lang": "en",
                        "unit_type": "float",
                        "min_value": 0,
-                       "max_value": 100
-                       },
+                       "max_value": 100,
+                       "properties": {
+                           "madeBySensor": "SensorURI?"
+                           # set_property(feature, "resultTime", str(resultTime))
+                           #     set_property(feature, "phenomenonTime", str(phenomenonTime))
+                           # set_property(feature, "madeBySensor", madeBySensor)
+                           #     set_property(feature, "hasFeatureOfInterest", hasFeatureOfInterest)
+                           # set_property(feature, "observedProperty", observedProperty)
+                           #     set_property(feature, "wasOriginatedBy", wasOriginatedBy)
+                           # set_property(feature, "deployedSystem", deployedSystem)
+
+                       }
+                  },
                   "approved":
                       {"id": "measurement_approved",
                        "label": "providers approved",
@@ -255,6 +277,10 @@ parameters_def = {"sea_water_temperature":
                        "categoryEncoding": {
                            "http://id3iliad.example.com/observedProperties/approved/yes": 1,
                            "http://id3iliad.example.com/observedProperties/approved/no": 0,
+                           "no": 0, "yes": 1
+
+                       },
+                       "categoriesMapping": {
                            "yes": 1,
                            "no": 0
                        }
@@ -308,8 +334,9 @@ def build_coverage_rangetype():
         'field': []
     }
     for l in locations:
-        for table in l['tables']:
-            for pname, pcolumn in table.items():
+        for table_name in l['tables'].keys():
+            variables = l['tables'][table_name]
+            for p_name in variables.keys():
                 try:
                     parameter = parameters_def[pname]
                 except:
@@ -341,21 +368,87 @@ def build_coverage_rangetype():
 print(build_coverage_rangetype());
 
 
+def build_covj_property_continuous(parameter):
+    return Parameter(
+                    id=parameter['id'],
+                    description={parameter['description_lang']: parameter['description']},
+                    unit=Unit(
+                        label={parameter['unit_label_lang']: parameter['unit_label']},
+                        symbol=Symbol(
+                            value=parameter['unit_symbol'],
+                            type=parameter['unit_type'])
+                    ),
+                    observedProperty=ObservedProperty(
+                        id=parameter['observed_property_id'],
+                        label={parameter['observed_property_label_lang']: parameter['observed_property_label']}
+                    ),
+                    properties=parameter['properties']
+                )
+
+def build_range_continuous(values, parameter):
+    return NdArray(axisNames=["x", "y", "t"], shape=[1, 1, len(values)],
+                   values=values)
+
+
+def build_range_category(values, parameter):
+    print(parameter)
+    return NdArray(axisNames=["x", "y", "t"], shape=[1, 1, len(values)],
+                   values=list(map(lambda v: parameter['categoryEncoding'][v], values)))
+
+
 # bucket, data_table, '2023-05-01T02:25:00Z', '2023-05-01T02:30:00Z'
 def build_coverages_collection_covj(bucket, start_time, stop_time):
     _parameters = {}
-    for name, geometry, tables in locations:
-        for table_name, table_columns in tables:
-            print(table_name)
-
-            query = define_query_interval(bucket, data_table, start_time, stop_time)
-            data = query_to_df(url, token, query)
-            for variable, column_name in table_columns:
-                print(variable)
-
-        # _parameters.append(Parameter())
     _coverages = []
-
+    for l in locations:
+        for table_name in l['tables'].keys():
+            variables = l['tables'][table_name]
+            for p_name in variables.keys():
+                column = variables[p_name]
+                print(table_name)
+                if parameters_def[p_name]['type'] == 'Quantity':
+                    _parameters[p_name] =\
+                        build_covj_property_continuous(parameters_def[p_name])
+                elif parameters_def[p_name]['type'] == 'Category':
+                    _parameters[p_name] = \
+                        (build_covj_property_category(parameters_def[p_name]))
+            query = define_query(bucket, data_table, start_time, stop_time)
+            data = query_to_df(url, token, query)
+            print(data)
+            _ranges = {}
+            for p_name in variables.keys():
+                column = variables[p_name]
+                measurement_values = data[column]
+                if parameters_def[p_name]['type'] == 'Quantity':
+                    _ranges[p_name] = build_range_continuous(measurement_values, parameters_def[p_name])
+                elif parameters_def[p_name]['type'] == 'Category':
+                    _ranges[p_name] = build_range_category(measurement_values, parameters_def[p_name])
+            print("x:" + str([l['geometry']['point']['y']]))
+            print("y:" + str(l['geometry']['point']['y']))
+            coverage = Coverage(
+                domain=Domain(
+                    domainType=DomainType.point_series,
+                    referencing=[
+                        ReferenceSystemConnectionObject(
+                            coordinates=["x", "y"],
+                            system=ReferenceSystem(type="GeographicCRS",
+                                                   id="http://www.opengis.net/def/crs/OGC/1.3/CRS84")
+                        ),
+                        ReferenceSystemConnectionObject(
+                            coordinates=["t"],
+                            system=ReferenceSystem(type="TemporalRS",
+                                                   calendar="Gregorian")
+                        )
+                    ],
+                    axes=Axes(
+                        x=ValuesAxis[float](values=[l['geometry']['point']['x']]),
+                        y=ValuesAxis[float](values=[l['geometry']['point']['y']]),
+                        t=ValuesAxis[AwareDatetime](values=data['_time'])
+                    )
+                ),
+                ranges=_ranges
+            )
+            _coverages.append(coverage)
     cov = CoverageCollection(
         domainType=DomainType.point_series,
         coverages=_coverages,
@@ -373,6 +466,7 @@ def build_coverages_collection_covj(bucket, start_time, stop_time):
             )
         ]
     )
+    return cov
 
 
 def build_single_covj():
@@ -425,9 +519,23 @@ def build_single_covj():
     )
     return cov
 
+def filter_locations(locations, shape):
+    filtered_locations = []
+    for l in locations:
+        g = l['geometry']
+        for gk in g.keys():
+            if gk == 'point':
+                p = Point(g[gk])
+            elif gk == 'polygon':
+                p = Polygon(g[gk])
+            if not shape.disjoint(p):
+                filtered_locations.append(l)
+    return filtered_locations
+
+# print(filter_locations(locations,[[10.5,58],[10.5,59],[11.5,59],[11.5,58],[10.5,58]]))
 
 # cov = build_single_covj()
-cov = build_coverages_collection_covj()
+cov = build_coverages_collection_covj(bucket, '2023-05-01T02:25:00Z', '2023-05-01T02:30:00Z', )
 # print(cov.model_dump_json(exclude_none=True, indent=4))
 
 with open("/Users/piotr/Temp/sintef_sst_sample.covjson", "w") as outfile:

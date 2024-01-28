@@ -3828,14 +3828,15 @@ class API:
             return self.get_exception(
                 HTTPStatus.BAD_REQUEST, headers, request.format,
                 'InvalidParameterValue', msg)
-
+        LOGGER.debug("parameternames value:" + str(parameternames))
+        LOGGER.debug("provider value:" + str(p.get_fields()))
         if parameternames and not any((fld['id'] in parameternames)
                                       for fld in p.get_fields()['field']):
             msg = 'Invalid parameter-name'
             return self.get_exception(
                 HTTPStatus.BAD_REQUEST, headers, request.format,
                 'InvalidParameterValue', msg)
-
+        LOGGER.debug("bbox value:" + str(bbox))
         query_args = dict(
             query_type=query_type,
             instance=instance,
@@ -3849,7 +3850,7 @@ class API:
             within_units=within_units,
             limit=int(self.config['server']['limit'])
         )
-
+        LOGGER.debug("query_args value:" + str(query_args))
         try:
             data = p.query(**query_args)
         except ProviderNoDataError:
@@ -3865,13 +3866,16 @@ class API:
             return self.get_exception(
                 HTTPStatus.REQUEST_ENTITY_TOO_LARGE, headers, request.format,
                 'NoApplicableCode', str(err))
-
+        LOGGER.debug("data:" + str(data))
         if request.format == F_HTML:  # render
             content = render_j2_template(self.tpl_config,
                                          'collections/edr/query.html', data,
                                          self.default_locale)
         else:
-            content = to_json(data, self.pretty_print)
+            if type(data) is str:
+                content = data
+            else:
+                content = to_json(data, self.pretty_print)
 
         return headers, HTTPStatus.OK, content
 

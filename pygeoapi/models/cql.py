@@ -36,11 +36,11 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 
 
 class CQLModel(BaseModel):
-    __root__: 'Union[\n        ComparisonPredicate,\n        SpatialPredicate,\n        TemporalPredicate,\n        AndExpression\n    ]'
+    RootModel: 'Union[\n        ComparisonPredicate,\n        SpatialPredicate,\n        TemporalPredicate,\n        AndExpression\n    ]'
 
 
 class AndExpression(BaseModel):
@@ -60,11 +60,11 @@ class PropertyRef(BaseModel):
 
 
 class ScalarLiteral(BaseModel):
-    __root__: 'Union[str, float, bool]'
+    RootModel: 'Union[str, float, bool]'
 
 
 class Bbox(BaseModel):
-    __root__: 'List[float]'
+    RootModel: 'List[float]'
 
 
 class LineStringType(Enum):
@@ -72,7 +72,7 @@ class LineStringType(Enum):
 
 
 class LinestringCoordinate(BaseModel):
-    __root__: 'List[Any]'
+    RootModel: 'List[Any]'
 
 
 class Linestring(BaseModel):
@@ -86,7 +86,7 @@ class MultiLineStringType(Enum):
 
 
 class MultilineStringCoordinate(BaseModel):
-    __root__: 'List[Any]'
+    RootModel: 'List[Any]'
 
 
 class Multilinestring(BaseModel):
@@ -110,7 +110,7 @@ class MultiPolygonType(Enum):
 
 
 class MultipolygonCoordinateItem(BaseModel):
-    __root__: 'List[Any]'
+    RootModel: 'List[Any]'
 
 
 class Multipolygon(BaseModel):
@@ -134,7 +134,7 @@ class PolygonType(Enum):
 
 
 class PolygonCoordinatesItem(BaseModel):
-    __root__: 'List[Any]'
+    RootModel: 'List[Any]'
 
 
 class Polygon(BaseModel):
@@ -144,7 +144,7 @@ class Polygon(BaseModel):
 
 
 class TimeString(BaseModel):
-    __root__: 'Union[date, datetime]'
+    RootModel: 'Union[date, datetime]'
 
 
 class EnvelopeLiteral(BaseModel):
@@ -152,7 +152,7 @@ class EnvelopeLiteral(BaseModel):
 
 
 class GeometryLiteral(BaseModel):
-    __root__: 'Union[\n        Point, Linestring, Polygon, Multipoint, Multilinestring, Multipolygon\n    ]'
+    RootModel: 'Union[\n        Point, Linestring, Polygon, Multipoint, Multilinestring, Multipolygon\n    ]'
 
 
 class TypedTimeString(BaseModel):
@@ -160,15 +160,15 @@ class TypedTimeString(BaseModel):
 
 
 class PeriodString(BaseModel):
-    __root__: 'List[Union[TimeString, str]]' = Field(...)
+    RootModel: 'List[Union[TimeString, str]]' = Field(...)
 
 
 class SpatialLiteral(BaseModel):
-    __root__: 'Union[GeometryLiteral, EnvelopeLiteral]'
+    RootModel: 'Union[GeometryLiteral, EnvelopeLiteral]'
 
 
 class TemporalLiteral(BaseModel):
-    __root__: 'Union[TimeString, PeriodString]'
+    RootModel: 'Union[TimeString, PeriodString]'
 
 
 class TypedPeriodString(BaseModel):
@@ -176,23 +176,23 @@ class TypedPeriodString(BaseModel):
 
 
 class TypedTemporalLiteral(BaseModel):
-    __root__: 'Union[TypedTimeString, TypedPeriodString]'
+    RootModel: 'Union[TypedTimeString, TypedPeriodString]'
 
 
 class ArrayPredicate(BaseModel):
-    __root__: 'Union[\n        AequalsExpression,\n        AcontainsExpression,\n        AcontainedByExpression,\n        AoverlapsExpression,\n    ]'
+    RootModel: 'Union[\n        AequalsExpression,\n        AcontainsExpression,\n        AcontainedByExpression,\n        AoverlapsExpression,\n    ]'
 
 
 class ComparisonPredicate(BaseModel):
-    __root__: 'Union[\n        BinaryComparisonPredicate,\n        IsLikePredicate,\n        IsBetweenPredicate,\n        IsInListPredicate,\n        IsNullPredicate,\n    ]'
+    RootModel: 'Union[\n        BinaryComparisonPredicate,\n        IsLikePredicate,\n        IsBetweenPredicate,\n        IsInListPredicate,\n        IsNullPredicate,\n    ]'
 
 
 class SpatialPredicate(BaseModel):
-    __root__: 'Union[\n        IntersectsExpression,\n        EqualsExpression,\n        DisjointExpression,\n        TouchesExpression,\n        WithinExpression,\n        OverlapsExpression,\n        CrossesExpression,\n        ContainsExpression,\n    ]'
+    RootModel: 'Union[\n        IntersectsExpression,\n        EqualsExpression,\n        DisjointExpression,\n        TouchesExpression,\n        WithinExpression,\n        OverlapsExpression,\n        CrossesExpression,\n        ContainsExpression,\n    ]'
 
 
 class TemporalPredicate(BaseModel):
-    __root__: 'Union[\n        BeforeExpression,\n        AfterExpression,\n        MeetsExpression,\n        MetbyExpression,\n        ToverlapsExpression,\n        OverlappedbyExpression,\n        BeginsExpression,\n        BegunbyExpression,\n        DuringExpression,\n        TcontainsExpression,\n        EndsExpression,\n        EndedbyExpression,\n        TequalsExpression,\n        AnyinteractsExpression,\n    ]'
+    RootModel: 'Union[\n        BeforeExpression,\n        AfterExpression,\n        MeetsExpression,\n        MetbyExpression,\n        ToverlapsExpression,\n        OverlappedbyExpression,\n        BeginsExpression,\n        BegunbyExpression,\n        DuringExpression,\n        TcontainsExpression,\n        EndsExpression,\n        EndedbyExpression,\n        TequalsExpression,\n        AnyinteractsExpression,\n    ]'
 
 
 class AcontainedByExpression(BaseModel):
@@ -232,7 +232,7 @@ class BegunbyExpression(BaseModel):
 
 
 class BinaryComparisonPredicate(BaseModel):
-    __root__: 'Union[\n        EqExpression, LtExpression, GtExpression, LteExpression, GteExpression\n    ]'
+    RootModel: 'Union[\n        EqExpression, LtExpression, GtExpression, LteExpression, GteExpression\n    ]'
 
 
 class ContainsExpression(BaseModel):
@@ -336,7 +336,7 @@ class WithinExpression(BaseModel):
 
 
 class ArrayExpression(BaseModel):
-    __root__: 'List[Union[PropertyRef, FunctionRef, ArrayLiteral]]' = Field(
+    RootModel: 'List[Union[PropertyRef, FunctionRef, ArrayLiteral]]' = Field(
         ...  # , max_items=2, min_items=2
     )
 
@@ -362,32 +362,32 @@ class LteExpression(BaseModel):
 
 
 class ScalarExpression(BaseModel):
-    __root__: 'Union[ScalarLiteral, PropertyRef,\n                    FunctionRef, ArithmeticExpression]'
+    RootModel: 'Union[ScalarLiteral, PropertyRef,\n                    FunctionRef, ArithmeticExpression]'
 
 
 class ScalarOperands(BaseModel):
-    __root__: 'List[ScalarExpression]' = Field(...)
+    RootModel: 'List[ScalarExpression]' = Field(...)
 
 
 class SpatialOperands(BaseModel):
-    __root__: 'List[GeomExpression]' = Field(...)
+    RootModel: 'List[GeomExpression]' = Field(...)
 
 
 class TemporalOperands(BaseModel):
-    __root__: 'List[TemporalExpression]' = Field(...)
+    RootModel: 'List[TemporalExpression]' = Field(...)
     # , max_items=2, min_items=2)
 
 
 class ValueExpression(BaseModel):
-    __root__: 'Union[ScalarExpression, SpatialLiteral, TypedTemporalLiteral]'
+    RootModel: 'Union[ScalarExpression, SpatialLiteral, TypedTemporalLiteral]'
 
 
 class ArithmeticExpression(BaseModel):
-    __root__: 'Union[AddExpression, SubExpression, MulExpression, DivExpression]'
+    RootModel: 'Union[AddExpression, SubExpression, MulExpression, DivExpression]'
 
 
 class ArrayLiteral(BaseModel):
-    __root__: 'List[\n        Union[\n            ScalarLiteral,\n            SpatialLiteral,\n            TypedTemporalLiteral,\n            PropertyRef,\n            FunctionRef,\n            ArithmeticExpression,\n            ArrayLiteral,\n        ]\n    ]'
+    RootModel: 'List[\n        Union[\n            ScalarLiteral,\n            SpatialLiteral,\n            TypedTemporalLiteral,\n            PropertyRef,\n            FunctionRef,\n            ArithmeticExpression,\n            ArrayLiteral,\n        ]\n    ]'
 
 
 class FunctionRef(BaseModel):
@@ -395,19 +395,19 @@ class FunctionRef(BaseModel):
 
 
 class GeomExpression(BaseModel):
-    __root__: 'Union[SpatialLiteral, PropertyRef, FunctionRef]'
+    RootModel: 'Union[SpatialLiteral, PropertyRef, FunctionRef]'
 
 
 class TemporalExpression(BaseModel):
-    __root__: 'Union[TemporalLiteral, PropertyRef, FunctionRef]'
+    RootModel: 'Union[TemporalLiteral, PropertyRef, FunctionRef]'
 
 
 class AddExpression(BaseModel):
-    _: 'ArithmeticOperands' = Field(..., alias='+')
+    i_: 'ArithmeticOperands' = Field(..., alias='+')
 
 
 class DivExpression(BaseModel):
-    _: 'Optional[ArithmeticOperands]' = Field(None, alias='/')
+    i_: 'Optional[ArithmeticOperands]' = Field(None, alias='/')
 
 
 class Function(BaseModel):
@@ -416,15 +416,15 @@ class Function(BaseModel):
 
 
 class MulExpression(BaseModel):
-    _: 'ArithmeticOperands' = Field(..., alias='*')
+    i_: 'ArithmeticOperands' = Field(..., alias='*')
 
 
 class SubExpression(BaseModel):
-    _: 'ArithmeticOperands' = Field(..., alias='-')
+    i_: 'ArithmeticOperands' = Field(..., alias='-')
 
 
 class ArithmeticOperands(BaseModel):
-    __root__: 'List[\n        Union[ArithmeticExpression, PropertyRef, FunctionRef, float]\n    ]' = Field(...)
+    RootModel: 'List[\n        Union[ArithmeticExpression, PropertyRef, FunctionRef, float]\n    ]' = Field(...)
 
 
 CQLModel.update_forward_refs()
@@ -499,25 +499,25 @@ def get_next_node(obj):
         next_node = obj.not_
         logical_op = 'not'
     elif obj.__repr_name__() == 'ComparisonPredicate':
-        next_node = obj.__root__
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'SpatialPredicate':
-        next_node = obj.__root__
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'TemporalPredicate':
-        next_node = obj.__root__
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'IsBetweenPredicate':
         next_node = obj.between
     elif obj.__repr_name__() == 'Between':
         next_node = obj.value
     elif obj.__repr_name__() == 'ValueExpression':
-        next_node = obj.__root__ or obj.lower or obj.upper
+        next_node = obj.RootModel or obj.lower or obj.upper
     elif obj.__repr_name__() == 'ScalarExpression':
-        next_node = obj.__root__
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'ScalarLiteral':
-        next_node = obj.__root__
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'PropertyRef':
         next_node = obj.property
     elif obj.__repr_name__() == 'BinaryComparisonPredicate':
-        next_node = obj.__root__
+        next_node = obj.RootModel
     elif obj.__repr_name__() == 'EqExpression':
         next_node = obj.eq
         logical_op = 'eq'
