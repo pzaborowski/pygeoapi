@@ -381,7 +381,7 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
 
         cov = CoverageCollection(
             domainType=DomainType.point_series,
-            domain=Domain(),
+            # domain=Domain(),
             coverages=_coverages,
             parameters=_parameters,
             referencing=[
