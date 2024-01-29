@@ -77,86 +77,6 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
         """
         return self.get_coverage_rangetype()
 
-    @BaseEDRProvider.register()
-    def position(self, **kwargs):
-        """
-        Extract data from collection collection
-
-        :param query_type: query type
-        :param wkt: `shapely.geometry` WKT geometry
-        :param datetime_: temporal (datestamp or extent)
-        :param select_properties: list of parameters
-        :param z: vertical level(s)
-        :param format_: data format of output
-
-        :returns: coverage data as dict of CoverageJSON or native format
-        """
-        query_params = {}
-        LOGGER.debug(f'Query parameters: {kwargs}')
-        wkt = self.read_position_parameters(kwargs, query_params)
-
-        LOGGER.debug('Processing parameter-name')
-        select_properties = kwargs.get('select_properties')
-
-        # example of fetching instance passed
-        # TODO: apply accordingly
-        instance = kwargs.get('instance')
-        LOGGER.debug(f'instance: {instance}')
-
-        datetime_ = self._read_datetime_qparam(kwargs, query_params)
-
-        LOGGER.debug(f'query parameters: {query_params}')
-
-        LOGGER.debug("Querying the data from database")
-        '''cube = Polygon(((10.0,58.0),(12.0,58.0),(12.0,59.0),(10.0,59.0),(10.0,58.0)))'''
-        '''
-        try:
-            if select_properties:
-                self.fields = select_properties
-                data = self._data[[*select_properties]]
-            else:
-                data = self._data
-            if (datetime_ is not None and
-                isinstance(query_params[self.time_field], slice)): # noqa
-                # separate query into spatial and temporal components
-                LOGGER.debug('Separating temporal query')
-                time_query = {self.time_field:
-                              query_params[self.time_field]}
-                remaining_query = {key: val for key,
-                                   val in query_params.items()
-                                   if key != self.time_field}
-                data = data.sel(time_query).sel(remaining_query,
-                                                method='nearest')
-            else:
-                data = data.sel(query_params, method='nearest')
-        except KeyError:
-            raise ProviderNoDataError()
-
-        try:
-            height = data.dims[self.y_field]
-        except KeyError:
-            height = 1
-        try:
-            width = data.dims[self.x_field]
-        except KeyError:
-            width = 1
-        time, time_steps, time_values = self._parse_time_metadata(data, kwargs)
-        bbox = wkt.bounds
-        out_meta = {
-            'bbox': [bbox[0], bbox[1], bbox[2], bbox[3]],
-            "time": time,
-            "driver": "xarray",
-            "height": height,
-            "width": width,
-            "time_steps": time_steps,
-            "time_values": time_values,
-            #"time_values": list(map(lambda dt: str(dt), data.coords[self.time_field].to_numpy())),
-            "variables": {var_name: var.attrs
-                          for var_name, var in data.variables.items()}
-        }
-'''
-        return self.gen_covjson(out_meta, data, self.fields)
-
     def _read_datetime_qparam(self, kwargs, query_params):
         datetime_ = kwargs.get('datetime_')
         if datetime_ is not None:
@@ -233,42 +153,6 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
                                                     select_properties,
                                                     filtered_locations)
 
-
-        # try:
-        #     if select_properties:
-        #         self.fields = select_properties
-        #         data = self._data[[*select_properties]]
-        #     else:
-        #         data = self._data
-        #     data = data.sel(query_params)
-        # except KeyError:
-        #     raise ProviderNoDataError()
-        #
-        # height = data.dims[self.y_field]
-        # width = data.dims[self.x_field]
-        # time, time_steps, time_values = self._parse_time_metadata(data, kwargs)
-        #
-        # out_meta = {
-        #     'bbox': [
-        #         data.coords[self.x_field].values[0],
-        #         data.coords[self.y_field].values[0],
-        #         data.coords[self.x_field].values[-1],
-        #         data.coords[self.y_field].values[-1]
-        #     ],
-        #     "time": time,
-        #     "driver": "xarray",
-        #     "height": height,
-        #     "width": width,
-        #
-        #     "time_steps": data.dims[self.time_field],
-        #     "time_values": list(map(lambda dt: str(dt), data.coords[self.time_field].to_numpy())),
-        #
-        #     "variables": {var_name: var.attrs
-        #                   for var_name, var in data.variables.items()}
-        # }
-        #
-        # return self.gen_covjson(out_meta, data, self.fields)
-
     def _read_select_properties_qparam(self, kwargs, query_params):
         sp = kwargs.get('select_properties')
 
@@ -283,6 +167,7 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
                     p = Polygon(g[gk])
                 if not shape.disjoint(p):
                     filtered_locations.append(l)
+        LOGGER.debug("filtered_locations: " + str(filtered_locations))
         return filtered_locations
 
     def _read_bbox_qparam(self, bbox, query_params):
@@ -316,12 +201,6 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
         else:
             return datetime_, datetime_
 
-    def gen_covjson(self):
-        """ serialise to covjson representation
-            potentially to be replaced byt the formatter
-        """
-
-    # bucket, data_table, '2023-05-01T02:25:00Z', '2023-05-01T02:30:00Z'
     def build_coverages_collection_covj(self, bucket, start_time, stop_time, parameters, locations):
         _parameters = {}
         _coverages = []

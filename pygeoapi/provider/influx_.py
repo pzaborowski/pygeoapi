@@ -42,7 +42,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class InfluxDBProvider(BaseProvider):
-    """InfluxDB provider"""
+    """InfluxDB abstact provider, query but not serialise"""
 
     def __init__(self, provider_def):
         """
@@ -64,9 +64,9 @@ class InfluxDBProvider(BaseProvider):
         self.rangetype = None
         self.rangetype = self.get_coverage_rangetype()
         # Store the URL of your InfluxDB instance
-        #self.geometry_x = provider_def['geometry']['x_field']
-        #self.geometry_y = provider_def['geometry']['y_field']
-        #self.fields = self.get_fields()
+        # self.geometry_x = provider_def['geometry']['x_field']
+        # self.geometry_y = provider_def['geometry']['y_field']
+        # self.fields = self.get_fields()
 
     def get_coverage_rangetype(self, *args, **kwargs):
         """
@@ -117,34 +117,8 @@ class InfluxDBProvider(BaseProvider):
                                 'tags': 'None'
                             }
                         })
+        LOGGER.debug("rangetype: " + str(rangetype))
         return rangetype
-
-
-    @crs_transform
-    def query(self, offset=0, limit=10, resulttype='results',
-              bbox=[], datetime_=None, properties=[], sortby=[],
-              select_properties=[], skip_geometry=False, q=None, **kwargs):
-        """
-        CSV query
-
-        :param offset: starting record to return (default 0)
-        :param limit: number of records to return (default 10)
-        :param resulttype: return results or hit limit (default results)
-        :param bbox: bounding box [minx,miny,maxx,maxy]
-        :param datetime_: temporal (datestamp or extent)
-        :param properties: list of tuples (name, value)
-        :param sortby: list of dicts (property, order)
-        :param select_properties: list of property names
-        :param skip_geometry: bool of whether to skip geometry (default False)
-        :param q: full-text search term(s)
-
-        :returns: dict of GeoJSON FeatureCollection
-        """
-
-        return self._load(offset, limit, resulttype,
-                          properties=properties,
-                          select_properties=select_properties,
-                          skip_geometry=skip_geometry)
 
     @crs_transform
     def get(self, identifier, **kwargs):
@@ -167,7 +141,7 @@ class InfluxDBProvider(BaseProvider):
         return f'<InfluxDBProvider> {self.data}'
 
     def gen_covjson(self):
-        Throw("not")
+        Throw("This class is abstract, serialisation implementation in ")
 
     def define_query(self, bucket, measurement, start_date, end_date):
         # Set up query, in this example data since start_date to end_date from table {measurement}
@@ -176,26 +150,18 @@ class InfluxDBProvider(BaseProvider):
         # :start_date: startdate as string, e.g. '2023-05-01T00:00:00Z'
         # :end_date: end_date as string, e.g. '2023-05-02T00:00:00Z'
         # returns query string in InfluxDbClient form£at
+        range_stmt = ""
         if start_date is not None and end_date is not None:
-            query = f'''from(bucket:"{bucket}")
-|> range(start: {start_date}Z , stop: {end_date}Z)
-|> filter(fn:(r) => r._measurement == "{measurement}")
-|> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
+            range_stmt = f'''|> range(start: {start_date}Z , stop: {end_date}Z)'''
         elif start_date is not None:
-            query = f'''from(bucket:"{bucket}")
-                     |> range(start:-{start_time})
-                     |> filter(fn:(r) => r._measurement == "{measurement}")
-                     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
+            range_stmt = f'''|> range(start:-{start_time})'''
         elif end_date is not None:
-            query = f'''from(bucket:"{bucket}")
-                     |> range(stop: {end_date})
-                     |> filter(fn:(r) => r._measurement == "{measurement}")
-                     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
-        else:
-            query = f'''from(bucket:"{bucket}")
-                     |> filter(fn:(r) => r._measurement == "{measurement}")
-                     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
+            range_set = f'''|> range(stop: {end_date})'''
 
+        query = f'''from(bucket:"{bucket}")''' + \
+                range_stmt + \
+                f'''|> filter(fn:(r) => r._measurement == "{measurement}")
+                 |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
         return query
 
     def query_to_df(self, url, token, query):
