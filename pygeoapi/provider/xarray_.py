@@ -313,6 +313,7 @@ class XarrayProvider(BaseProvider):
             "height": data.dims[self.y_field],
             "width": data.dims[self.x_field],
             "time_steps": data.dims[self.time_field],
+            "time_values": data.coords[self.time_field].values.astype('str').tolist(),
             "variables": {var_name: var.attrs
                           for var_name, var in data.variables.items()}
         }
@@ -372,8 +373,8 @@ class XarrayProvider(BaseProvider):
                         'num': metadata['width']
                     },
                     'y': {
-                        'start': miny,
-                        'stop': maxy,
+                        'start': maxy,
+                        'stop': miny,
                         'num': metadata['height']
                     },
                     self.time_api_label: {
@@ -384,7 +385,7 @@ class XarrayProvider(BaseProvider):
                     }
                 },
                 'referencing': [{
-                    'coordinates': ['x', 'y'],
+                    'coordinates': ['y', 'x'],
                     'system': {
                         'type': self._coverage_properties['crs_type'],
                         'id': self._coverage_properties['bbox_crs']
@@ -420,9 +421,11 @@ class XarrayProvider(BaseProvider):
 
         try:
             for key in cj['parameters'].keys():
+                data = data.fillna(None)
+                values = data[key].transpose(self.y_field,self.x_field,self.time_field).values.flatten().tolist()  # noqa
                 cj['ranges'][key] = {
                     'type': 'NdArray',
-                    'dataType': str(self._data[variable].dtype),
+                    'dataType': str(type(values[0]).__name__),
                     'axisNames': [
                         'y', 'x', self.time_api_label #self._coverage_properties['time_axis_label']
                     ],
@@ -431,9 +434,7 @@ class XarrayProvider(BaseProvider):
                               metadata['time_steps']]
                 }
 
-
-                data = data.fillna(None)
-                cj['ranges'][key]['values'] = data[key].transpose(self.y_field,self.x_field,self.time_field).values.flatten().tolist()  # noqa
+                cj['ranges'][key]['values'] = values
         except IndexError as err:
             LOGGER.warning(err)
             raise ProviderQueryError('Invalid query parameter')
@@ -505,8 +506,8 @@ class XarrayProvider(BaseProvider):
         if 'crs' in self._data.variables.keys():
             properties['bbox_crs'] = f'http://www.opengis.net/def/crs/OGC/1.3/{self._data.crs.epsg_code}'  # noqa
 
-            properties['inverse_flattening'] = self._data.crs.\
-                inverse_flattening
+            #properties['inverse_flattening'] = self._data.crs.\
+            #    inverse_flattening
 
             properties['crs_type'] = 'ProjectedCRS'
 

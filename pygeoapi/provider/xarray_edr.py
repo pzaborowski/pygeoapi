@@ -240,6 +240,7 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
             "height": height,
             "width": width,
             "time_steps": time_steps,
+            "time_values": data.coords[self.time_field].values.astype('str').tolist(),
             "variables": {var_name: var.attrs
                           for var_name, var in data.variables.items()}
         }
