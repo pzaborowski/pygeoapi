@@ -641,7 +641,7 @@ class APIRequest:
 class API:
     """API object"""
 
-    def __init__(self, config):
+    def __init__(self, config, openapi):
         """
         constructor
 
@@ -651,6 +651,7 @@ class API:
         """
 
         self.config = config
+        self.openapi = openapi
         self.api_headers = get_api_rules(self.config).response_headers
         self.base_url = get_base_url(self.config)
         self.prefetcher = UrlPrefetcher()

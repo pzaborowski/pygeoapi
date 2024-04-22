@@ -504,7 +504,7 @@ class XarrayProvider(BaseProvider):
         }
 
         if 'crs' in self._data.variables.keys():
-            properties['bbox_crs'] = f'http://www.opengis.net/def/crs/OGC/1.3/{self._data.crs.epsg_code}'  # noqa
+            properties['bbox_crs'] = f'http://www.opengis.net/def/crs/EPSG/0/{self._data.crs.epsg_code}'  # noqa
 
             #properties['inverse_flattening'] = self._data.crs.\
             #    inverse_flattening
