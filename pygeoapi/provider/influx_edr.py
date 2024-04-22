@@ -75,7 +75,11 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
 
         :returns: dict of dicts of parameters
         """
-        return self.get_coverage_rangetype()
+        domainset = self.get_coverage_rangetype()
+        domainset.meta = {
+            'tags': dict(map(self._sanitize_ndarray_attr, self._data.attrs.items()))}
+        return domainset
+
 
 
     def _read_datetime_qparam(self, kwargs, query_params):
@@ -177,6 +181,55 @@ class InfluxEDRProvider(BaseEDRProvider, InfluxDBProvider):
                 ((bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3]), (bbox[0], bbox[1])))
         else:
             raise ProviderQueryError('z-axis not supported in queries')
+
+
+
+    def _sanitize_ndarray_attr(self, attribute):
+        if type(attribute[1]) is numpy.ndarray:
+            return attribute[0], list(attribute[1])
+        return attribute[0], attribute[1]
+
+    def get_coverage_rangetype(self, *args, **kwargs):
+        """
+        Provide coverage rangetype
+
+        :returns: CIS JSON object of rangetype metadata
+        """
+
+        rangetype = {
+            'type': 'DataRecord',
+            'field': []
+        }
+
+        for name, var in self._data.variables.items():
+            LOGGER.debug(f'Determining rangetype for {name}')
+
+            desc, units = None, None
+            if len(var.shape) >= 3:
+                parameter = self._get_parameter_metadata(
+                    name, var.attrs)
+                desc = parameter['description']
+                units = parameter['unit_label']
+
+                rangetype['field'].append({
+                    'id': name,
+                    'type': 'Quantity',
+                    'name': var.attrs.get('long_name') or desc,
+                    'encodingInfo': {
+                        'dataType': f'http://www.opengis.net/def/dataType/OGC/0/{var.dtype}'  # noqa
+                    },
+                    'nodata': 'null',
+                    'uom': {
+                        'id': f'http://www.opengis.net/def/uom/UCUM/{units}',
+                        'type': 'UnitReference',
+                        'code': units
+                    },
+                    '_meta': {
+                        'tags': dict(map(self._sanitize_ndarray_attr, var.attrs.items()))
+                    }
+                })
+
+        return rangetype
 
     def _make_datetime(self, datetime_):
         """
