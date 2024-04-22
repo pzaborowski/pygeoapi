@@ -32,9 +32,11 @@ import requests
 from urllib.parse import urlparse
 
 from pygeoapi.provider.base_mvt import BaseMVTProvider
-from pygeoapi.provider.base import ProviderConnectionError
+from pygeoapi.provider.base import (ProviderConnectionError,
+                                    ProviderGenericError,
+                                    ProviderInvalidQueryError)
 from pygeoapi.models.provider.base import (
-    TileSetMetadata, LinkType)
+    TileSetMetadata, TileMatrixSetEnum, LinkType)
 from pygeoapi.util import is_url, url_join
 
 LOGGER = logging.getLogger(__name__)
@@ -117,6 +119,13 @@ class MVTElasticProvider(BaseMVTProvider):
         LOGGER.debug('Removing leading "/"')
         return layer[1:]
 
+    def get_tiling_schemes(self):
+
+        "Only WebMercatorQuad tiling scheme is supported in elastic"
+        return [
+                TileMatrixSetEnum.WEBMERCATORQUAD.value
+            ]
+
     def get_tiles_service(self, baseurl=None, servicepath=None,
                           dirpath=None, tile_type=None):
         """
@@ -162,11 +171,17 @@ class MVTElasticProvider(BaseMVTProvider):
             else:
                 url_query = ''
 
-            with requests.Session() as session:
-                session.get(base_url)
-                resp = session.get(f'{base_url}/{layer}/{z}/{y}/{x}{url_query}')  # noqa
-                resp.raise_for_status()
-                return resp.content
+            try:
+                with requests.Session() as session:
+                    session.get(base_url)
+                    resp = session.get(f'{base_url}/{layer}/{z}/{y}/{x}{url_query}')  # noqa
+                    resp.raise_for_status()
+                    return resp.content
+            except requests.exceptions.RequestException as e:
+                LOGGER.debug(e)
+                if resp.status_code < 500:
+                    raise ProviderInvalidQueryError  # Client is sending an invalid request # noqa
+                raise ProviderGenericError  # Server error
         else:
             msg = 'Wrong input format for Elasticsearch MVT'
             LOGGER.error(msg)
@@ -209,6 +224,21 @@ class MVTElasticProvider(BaseMVTProvider):
                 crs = schema.crs
                 tileMatrixSetURI = schema.tileMatrixSetURI
 
+                tiling_scheme_url = url_join(
+                    server_url, f'/TileMatrixSets/{schema.tileMatrixSet}')
+                tiling_scheme_url_type = "application/json"
+                tiling_scheme_url_title = f'{schema.tileMatrixSet} tile matrix set definition' # noqa
+
+                tiling_scheme = LinkType(href=tiling_scheme_url,
+                                         rel="http://www.opengis.net/def/rel/ogc/1.0/tiling-scheme", # noqa
+                                         type_=tiling_scheme_url_type,
+                                         title=tiling_scheme_url_title)
+
+        if tiling_scheme is None:
+            msg = f'Could not identify a valid tiling schema'  # noqa
+            LOGGER.error(msg)
+            raise ProviderConnectionError(msg)
+
         content = TileSetMetadata(title=title, description=description,
                                   keywords=keywords, crs=crs,
                                   tileMatrixSetURI=tileMatrixSetURI)
@@ -217,18 +247,12 @@ class MVTElasticProvider(BaseMVTProvider):
         service_url_link_type = "application/vnd.mapbox-vector-tile"
         service_url_link_title = f'{tileset} vector tiles for {layer}'
         service_url_link = LinkType(href=service_url, rel="item",
-                                    type=service_url_link_type,
+                                    type_=service_url_link_type,
                                     title=service_url_link_title)
+
+        links.append(tiling_scheme)
         links.append(service_url_link)
 
         content.links = links
 
         return content.dict(exclude_none=True)
-
-    def get_vendor_metadata(self, dataset, server_url, layer, tileset,
-                            title, description, keywords, **kwargs):
-        """
-        Gets tile metadata in tilejson format
-        """
-        LOGGER.debug("Get tilejson metadata")
-        return ""

@@ -55,7 +55,6 @@ from geoalchemy2 import Geometry  # noqa - this isn't used explicitly but is nee
 from geoalchemy2.functions import ST_MakeEnvelope
 from geoalchemy2.shape import to_shape
 from pygeofilter.backends.sqlalchemy.evaluate import to_filter
-import pygeofilter.ast
 import pyproj
 import shapely
 from sqlalchemy import create_engine, MetaData, PrimaryKeyConstraint, asc, desc
@@ -139,9 +138,9 @@ class PostgreSQLProvider(BaseProvider):
 
         LOGGER.debug('Preparing filters')
         property_filters = self._get_property_filters(properties)
-        modified_filterq = self._modify_pygeofilter(filterq)
-        cql_filters = self._get_cql_filters(modified_filterq)
+        cql_filters = self._get_cql_filters(filterq)
         bbox_filter = self._get_bbox_filter(bbox)
+        time_filter = self._get_datetime_filter(datetime_)
         order_by_clauses = self._get_order_by_clauses(sortby, self.table_model)
         selected_properties = self._select_properties_clause(select_properties,
                                                              skip_geometry)
@@ -153,15 +152,10 @@ class PostgreSQLProvider(BaseProvider):
                        .filter(property_filters)
                        .filter(cql_filters)
                        .filter(bbox_filter)
-                       .order_by(*order_by_clauses)
-                       .options(selected_properties)
-                       .offset(offset))
+                       .filter(time_filter)
+                       .options(selected_properties))
 
             matched = results.count()
-            if limit < matched:
-                returned = limit
-            else:
-                returned = matched
 
             LOGGER.debug(f'Found {matched} result(s)')
 
@@ -170,14 +164,16 @@ class PostgreSQLProvider(BaseProvider):
                 'type': 'FeatureCollection',
                 'features': [],
                 'numberMatched': matched,
-                'numberReturned': returned
+                'numberReturned': 0
             }
 
             if resulttype == "hits" or not results:
-                response['numberReturned'] = 0
                 return response
+
             crs_transform_out = self._get_crs_transform(crs_transform_spec)
-            for item in results.limit(limit):
+
+            for item in results.order_by(*order_by_clauses).offset(offset).limit(limit):  # noqa
+                response['numberReturned'] += 1
                 response['features'].append(
                     self._sqlalchemy_to_feature(item, crs_transform_out)
                 )
@@ -239,8 +235,7 @@ class PostgreSQLProvider(BaseProvider):
         # Execute query within self-closing database Session context
         with Session(self._engine) as session:
             # Retrieve data from database as feature
-            query = session.query(self.table_model)
-            item = query.get(identifier)
+            item = session.get(self.table_model, identifier)
             if item is None:
                 msg = f"No such item: {self.id_field}={identifier}."
                 raise ProviderItemNotFoundError(msg)
@@ -331,12 +326,13 @@ class PostgreSQLProvider(BaseProvider):
         to target table.  This requires a database query and is expensive to
         perform.
         """
-        metadata = MetaData(engine)
+        metadata = MetaData()
 
         # Look for table in the first schema in the search path
         try:
             schema = self.db_search_path[0]
-            metadata.reflect(schema=schema, only=[self.table], views=True)
+            metadata.reflect(
+                bind=engine, schema=schema, only=[self.table], views=True)
         except OperationalError:
             msg = (f"Could not connect to {repr(engine.url)} "
                    "(password hidden).")
@@ -461,6 +457,29 @@ class PostgreSQLProvider(BaseProvider):
 
         return bbox_filter
 
+    def _get_datetime_filter(self, datetime_):
+        if datetime_ in (None, '../..'):
+            return True
+        else:
+            if self.time_field is None:
+                LOGGER.error('time_field not enabled for collection')
+                raise ProviderQueryError()
+
+            time_column = getattr(self.table_model, self.time_field)
+
+            if '/' in datetime_:  # envelope
+                LOGGER.debug('detected time range')
+                time_begin, time_end = datetime_.split('/')
+                if time_begin == '..':
+                    datetime_filter = time_column <= time_end
+                elif time_end == '..':
+                    datetime_filter = time_column >= time_begin
+                else:
+                    datetime_filter = time_column.between(time_begin, time_end)
+            else:
+                datetime_filter = time_column == datetime_
+        return datetime_filter
+
     def _select_properties_clause(self, select_properties, skip_geometry):
         # List the column names that we want
         if select_properties:
@@ -497,40 +516,3 @@ class PostgreSQLProvider(BaseProvider):
         else:
             crs_transform = None
         return crs_transform
-
-    def _modify_pygeofilter(
-            self,
-            ast_tree: pygeofilter.ast.Node,
-    ) -> pygeofilter.ast.Node:
-        """
-        Prepare the input pygeofilter for querying the database.
-
-        Returns a new ``pygeofilter.ast.Node`` object that can be used for
-        querying the database.
-        """
-        new_tree = deepcopy(ast_tree)
-        _inplace_replace_geometry_filter_name(new_tree, self.geom)
-        return new_tree
-
-
-def _inplace_replace_geometry_filter_name(
-        node: pygeofilter.ast.Node,
-        geometry_column_name: str
-):
-    """Recursively traverse node tree and rename nodes of type ``Attribute``.
-
-    Nodes of type ``Attribute`` named ``geometry`` are renamed to the value of
-    the ``geometry_column_name`` parameter.
-    """
-    try:
-        sub_nodes = node.get_sub_nodes()
-    except AttributeError:
-        pass
-    else:
-        for sub_node in sub_nodes:
-            is_attribute_node = isinstance(sub_node, pygeofilter.ast.Attribute)
-            if is_attribute_node and sub_node.name == "geometry":
-                sub_node.name = geometry_column_name
-            else:
-                _inplace_replace_geometry_filter_name(
-                    sub_node, geometry_column_name)

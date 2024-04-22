@@ -8,7 +8,7 @@
 # Copyright (c) 2022 Francesco Bartoli
 # Copyright (c) 2022 Luca Delucchi
 # Copyright (c) 2022 Krishna Lodha
-# Copyright (c) 2022 Tom Kralidis
+# Copyright (c) 2024 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -35,11 +35,19 @@
 
 """Integration module for Django"""
 
-from typing import Tuple, Dict, Mapping, Optional
+from typing import Tuple, Dict, Mapping, Optional, Union
+
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 
-from pygeoapi.api import API
+from pygeoapi.api import API, APIRequest, apply_gzip
+import pygeoapi.api.coverages as coverages_api
+import pygeoapi.api.environmental_data_retrieval as edr_api
+import pygeoapi.api.itemtypes as itemtypes_api
+import pygeoapi.api.maps as maps_api
+import pygeoapi.api.processes as processes_api
+import pygeoapi.api.stac as stac_api
+import pygeoapi.api.tiles as tiles_api
 
 
 def landing_page(request: HttpRequest) -> HttpResponse:
@@ -87,6 +95,28 @@ def conformance(request: HttpRequest) -> HttpResponse:
     return response
 
 
+def tilematrixsets(request: HttpRequest,
+                   tilematrixset_id: Optional[str] = None) -> HttpResponse:
+    """
+    OGC API tilematrixsets endpoint
+
+    :request Django HTTP Request
+    :param tilematrixset_id: tile matrix set identifier
+
+    :returns: Django HTTP Response
+    """
+
+    response = None
+
+    if tilematrixset_id is None:
+        response_ = _feed_response(request, 'tilematrixsets')
+    else:
+        response_ = _feed_response(request, 'tilematrixset', tilematrixset_id)
+    response = _to_django_response(*response_)
+
+    return response
+
+
 def collections(request: HttpRequest,
                 collection_id: Optional[str] = None) -> HttpResponse:
     """
@@ -104,6 +134,25 @@ def collections(request: HttpRequest,
     return response
 
 
+def collection_schema(request: HttpRequest,
+                      collection_id: Optional[str] = None) -> HttpResponse:
+    """
+    OGC API collections schema endpoint
+
+    :request Django HTTP Request
+    :param collection_id: collection identifier
+
+    :returns: Django HTTP Response
+    """
+
+    response_ = _feed_response(
+        request, 'get_collection_schema', collection_id
+    )
+    response = _to_django_response(*response_)
+
+    return response
+
+
 def collection_queryables(request: HttpRequest,
                           collection_id: Optional[str] = None) -> HttpResponse:
     """
@@ -115,8 +164,8 @@ def collection_queryables(request: HttpRequest,
     :returns: Django HTTP Response
     """
 
-    response_ = _feed_response(
-        request, 'get_collection_queryables', collection_id
+    response_ = execute_from_django(
+        itemtypes_api.get_collection_queryables, request, collection_id
     )
     response = _to_django_response(*response_)
 
@@ -134,22 +183,26 @@ def collection_items(request: HttpRequest, collection_id: str) -> HttpResponse:
     """
 
     if request.method == 'GET':
-        response_ = _feed_response(
+        response_ = execute_from_django(
+            itemtypes_api.get_collection_items,
             request,
-            'get_collection_items',
             collection_id,
+            skip_valid_check=True,
         )
     elif request.method == 'POST':
         if request.content_type is not None:
             if request.content_type == 'application/geo+json':
-                response_ = _feed_response(request, 'manage_collection_item',
-                                           request, 'create', collection_id)
+                response_ = execute_from_django(
+                    itemtypes_api.manage_collection_item, request,
+                    'create', collection_id, skip_valid_check=True)
             else:
-                response_ = _feed_response(request, 'post_collection_items',
-                                           request, collection_id)
+                response_ = execute_from_django(
+                    itemtypes_api.post_collection_items,
+                    request, collection_id, skip_valid_check=True,)
     elif request.method == 'OPTIONS':
-        response_ = _feed_response(request, 'manage_collection_item',
-                                   request, 'options', collection_id)
+        response_ = execute_from_django(itemtypes_api.manage_collection_item,
+                                        request, 'options', collection_id,
+                                        skip_valid_check=True)
 
     response = _to_django_response(*response_)
 
@@ -164,12 +217,9 @@ def collection_map(request: HttpRequest, collection_id: str):
 
     :returns: HTTP response
     """
-
-    response_ = _feed_response(request, 'get_collection_map', collection_id)
-
-    response = _to_django_response(*response_)
-
-    return response
+    return execute_from_django(
+        maps_api.get_collection_map, request, collection_id
+    )
 
 
 def collection_style_map(request: HttpRequest, collection_id: str,
@@ -210,17 +260,17 @@ def collection_item(request: HttpRequest,
     elif request.method == 'PUT':
         response_ = _feed_response(
             request, 'manage_collection_item', request, 'update',
-            collection_id, item_id
+            collection_id, item_id, skip_valid_check=True,
         )
     elif request.method == 'DELETE':
         response_ = _feed_response(
             request, 'manage_collection_item', request, 'delete',
-            collection_id, item_id
+            collection_id, item_id, skip_valid_check=True,
         )
     elif request.method == 'OPTIONS':
         response_ = _feed_response(
             request, 'manage_collection_item', request, 'options',
-            collection_id, item_id)
+            collection_id, item_id, skip_valid_check=True)
 
     response = _to_django_response(*response_)
 
@@ -238,46 +288,8 @@ def collection_coverage(request: HttpRequest,
     :returns: Django HTTP response
     """
 
-    response_ = _feed_response(
-        request, 'get_collection_coverage', collection_id
-    )
-    response = _to_django_response(*response_)
-
-    return response
-
-
-def collection_coverage_domainset(request: HttpRequest,
-                                  collection_id: str) -> HttpResponse:
-    """
-    OGC API - Coverages coverage domainset endpoint
-
-    :request Django HTTP Request
-    :param collection_id: collection identifier
-
-    :returns: Django HTTP response
-    """
-
-    response_ = _feed_response(
-        request, 'get_collection_coverage_domainset', collection_id
-    )
-    response = _to_django_response(*response_)
-
-    return response
-
-
-def collection_coverage_rangetype(request: HttpRequest,
-                                  collection_id: str) -> HttpResponse:
-    """
-    OGC API - Coverages coverage rangetype endpoint
-
-    :request Django HTTP Request
-    :param collection_id: collection identifier
-
-    :returns: Django HTTP response
-    """
-
-    response_ = _feed_response(
-        request, 'get_collection_coverage_rangetype', collection_id
+    response_ = execute_from_django(
+        coverages_api.get_collection_coverage, request, collection_id
     )
     response = _to_django_response(*response_)
 
@@ -294,10 +306,8 @@ def collection_tiles(request: HttpRequest, collection_id: str) -> HttpResponse:
     :returns: Django HTTP response
     """
 
-    response_ = _feed_response(request, 'get_collection_tiles', collection_id)
-    response = _to_django_response(*response_)
-
-    return response
+    return execute_from_django(tiles_api.get_collection_tiles, request,
+                               collection_id)
 
 
 def collection_tiles_metadata(request: HttpRequest, collection_id: str,
@@ -312,20 +322,16 @@ def collection_tiles_metadata(request: HttpRequest, collection_id: str,
     :returns: Django HTTP response
     """
 
-    response_ = _feed_response(
-        request,
-        'get_collection_tiles_metadata',
-        collection_id,
-        tileMatrixSetId,
+    return execute_from_django(
+        tiles_api.get_collection_tiles_metadata,
+        request, collection_id, tileMatrixSetId,
+        skip_valid_check=True,
     )
-    response = _to_django_response(*response_)
-
-    return response
 
 
 def collection_item_tiles(request: HttpRequest, collection_id: str,
                           tileMatrixSetId: str, tileMatrix: str,
-                          tileRow: str, tileCol: str,) -> HttpResponse:
+                          tileRow: str, tileCol: str) -> HttpResponse:
     """
     OGC API - Tiles collection tiles data endpoint
 
@@ -339,18 +345,16 @@ def collection_item_tiles(request: HttpRequest, collection_id: str,
     :returns: Django HTTP response
     """
 
-    response_ = _feed_response(
+    return execute_from_django(
+        tiles_api.get_collection_tiles_data,
         request,
-        'get_collection_tiles_metadata',
         collection_id,
         tileMatrixSetId,
         tileMatrix,
         tileRow,
         tileCol,
+        skip_valid_check=True,
     )
-    response = _to_django_response(*response_)
-
-    return response
 
 
 def processes(request: HttpRequest,
@@ -364,10 +368,22 @@ def processes(request: HttpRequest,
     :returns: Django HTTP response
     """
 
-    response_ = _feed_response(request, 'describe_processes', process_id)
-    response = _to_django_response(*response_)
+    return execute_from_django(processes_api.describe_processes, request,
+                               process_id)
 
-    return response
+
+def process_execution(request: HttpRequest, process_id: str) -> HttpResponse:
+    """
+    OGC API - Processes execution endpoint
+
+    :request Django HTTP Request
+    :param process_id: process identifier
+
+    :returns: Django HTTP response
+    """
+
+    return execute_from_django(processes_api.execute_process, request,
+                               process_id)
 
 
 def jobs(request: HttpRequest, job_id: Optional[str] = None) -> HttpResponse:
@@ -381,10 +397,14 @@ def jobs(request: HttpRequest, job_id: Optional[str] = None) -> HttpResponse:
     :returns: Django HTTP response
     """
 
-    response_ = _feed_response(request, 'get_jobs', job_id)
-    response = _to_django_response(*response_)
-
-    return response
+    if job_id is None:
+        return execute_from_django(processes_api.get_jobs, request)
+    else:
+        if request.method == 'DELETE':  # dismiss job
+            return execute_from_django(processes_api.delete_job, request,
+                                       job_id)
+        else:  # Return status of a specific job
+            return execute_from_django(processes_api.get_jobs, request, job_id)
 
 
 def job_results(request: HttpRequest,
@@ -398,10 +418,7 @@ def job_results(request: HttpRequest,
     :returns: Django HTTP response
     """
 
-    response_ = _feed_response(request, 'get_job_result', job_id)
-    response = _to_django_response(*response_)
-
-    return response
+    return execute_from_django(processes_api.get_job_result, request, job_id)
 
 
 def job_results_resource(request: HttpRequest, process_id: str, job_id: str,
@@ -416,6 +433,7 @@ def job_results_resource(request: HttpRequest, process_id: str, job_id: str,
     :returns: Django HTTP response
     """
 
+    # TODO: this api method does not exist
     response_ = _feed_response(
         request,
         'get_job_result_resource',
@@ -427,29 +445,35 @@ def job_results_resource(request: HttpRequest, process_id: str, job_id: str,
     return response
 
 
-def get_collection_edr_query(request: HttpRequest, collection_id: str,
-                             instance_id: str) -> HttpResponse:
+def get_collection_edr_query(
+        request: HttpRequest, collection_id: str,
+        instance_id: Optional[str] = None,
+        location_id: Optional[str] = None
+) -> HttpResponse:
     """
     OGC API - EDR endpoint
 
-    :request Django HTTP Request
-    :param job_id: job identifier
-    :param resource: job resource
+    :param request: Django HTTP Request
+    :param collection_id: collection identifier
+    :param instance_id: optional instance identifier. default is None
+    :param location_id: optional location identifier. default is None
 
     :returns: Django HTTP response
     """
 
-    query_type = request.path.split('/')[-1]
-    response_ = _feed_response(
+    if location_id:
+        query_type = 'locations'
+    else:
+        query_type = request.path.split('/')[-1]
+    return execute_from_django(
+        edr_api.get_collection_edr_query,
         request,
-        'get_collection_edr_query',
         collection_id,
         instance_id,
-        query_type
+        query_type,
+        location_id,
+        skip_valid_check=True,
     )
-    response = _to_django_response(*response_)
-
-    return response
 
 
 def stac_catalog_root(request: HttpRequest) -> HttpResponse:
@@ -461,10 +485,7 @@ def stac_catalog_root(request: HttpRequest) -> HttpResponse:
     :returns: Django HTTP response
     """
 
-    response_ = _feed_response(request, 'get_stac_root')
-    response = _to_django_response(*response_)
-
-    return response
+    return execute_from_django(stac_api.get_stac_root, request)
 
 
 def stac_catalog_path(request: HttpRequest, path: str) -> HttpResponse:
@@ -477,10 +498,7 @@ def stac_catalog_path(request: HttpRequest, path: str) -> HttpResponse:
     :returns: Django HTTP response
     """
 
-    response_ = _feed_response(request, 'get_stac_path', path)
-    response = _to_django_response(*response_)
-
-    return response
+    return execute_from_django(stac_api.get_stac_path, request, path)
 
 
 def admin_config(request: HttpRequest) -> HttpResponse:
@@ -539,23 +557,47 @@ def admin_config_resource(request: HttpRequest,
                               resource_id)
 
 
+# TODO: remove this when all views have been refactored
 def _feed_response(request: HttpRequest, api_definition: str,
                    *args, **kwargs) -> Tuple[Dict, int, str]:
     """Use pygeoapi api to process the input request"""
 
     if 'admin' in api_definition and settings.PYGEOAPI_CONFIG['server'].get('admin'):  # noqa
         from pygeoapi.admin import Admin
-        api_ = Admin(settings.PYGEOAPI_CONFIG)
+        api_ = Admin(settings.PYGEOAPI_CONFIG, settings.OPENAPI_DOCUMENT)
     else:
-        api_ = API(settings.PYGEOAPI_CONFIG)
+        api_ = API(settings.PYGEOAPI_CONFIG, settings.OPENAPI_DOCUMENT)
 
     api = getattr(api_, api_definition)
 
     return api(request, *args, **kwargs)
 
 
+def execute_from_django(api_function, request: HttpRequest, *args,
+                        skip_valid_check=False) -> HttpResponse:
+
+    api_: API | "Admin"
+    if settings.PYGEOAPI_CONFIG['server'].get('admin'):  # noqa
+        from pygeoapi.admin import Admin
+        api_ = Admin(settings.PYGEOAPI_CONFIG, settings.OPENAPI_DOCUMENT)
+    else:
+        api_ = API(settings.PYGEOAPI_CONFIG, settings.OPENAPI_DOCUMENT)
+
+    api_request = APIRequest.from_django(request, api_.locales)
+    content: Union[str, bytes]
+    if not skip_valid_check and not api_request.is_valid():
+        headers, status, content = api_.get_format_exception(api_request)
+    else:
+
+        headers, status, content = api_function(api_, api_request, *args)
+        content = apply_gzip(headers, content)
+
+    return _to_django_response(headers, status, content)
+
+
+# TODO: inline this to execute_from_django after refactoring
 def _to_django_response(headers: Mapping, status_code: int,
-                        content: str) -> HttpResponse:
+                        content: Union[str, bytes]) -> HttpResponse:
     """Convert API payload to a django response"""
 
     response = HttpResponse(content, status=status_code)

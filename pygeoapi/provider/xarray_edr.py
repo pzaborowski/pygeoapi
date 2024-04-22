@@ -58,15 +58,6 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
         BaseEDRProvider.__init__(self, provider_def)
         XarrayProvider.__init__(self, provider_def)
 
-    def get_fields(self):
-        """
-        Get provider field information (names, types)
-
-        :returns: dict of dicts of parameters
-        """
-
-        return self.get_coverage_rangetype()
-
     @BaseEDRProvider.register()
     def position(self, **kwargs):
         """
@@ -125,7 +116,7 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
 
         try:
             if select_properties:
-                self.fields = select_properties
+                self.fields = {k: v for k, v in self.fields.items() if k in select_properties}  # noqa
                 data = self._data[[*select_properties]]
             else:
                 data = self._data
@@ -154,11 +145,11 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
             raise ProviderNoDataError()
 
         try:
-            height = data.dims[self.y_field]
+            height = data.sizes[self.y_field]
         except KeyError:
             height = 1
         try:
-            width = data.dims[self.x_field]
+            width = data.sizes[self.x_field]
         except KeyError:
             width = 1
         time, time_steps = self._parse_time_metadata(data, kwargs)
@@ -231,7 +222,7 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
 
         try:
             if select_properties:
-                self.fields = select_properties
+                self.fields = {k: v for k, v in self.fields.items() if k in select_properties}  # noqa
                 data = self._data[[*select_properties]]
             else:
                 data = self._data
@@ -240,8 +231,8 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
         except KeyError:
             raise ProviderNoDataError()
 
-        height = data.dims[self.y_field]
-        width = data.dims[self.x_field]
+        height = data.sizes[self.y_field]
+        width = data.sizes[self.x_field]
         time, time_steps = self._parse_time_metadata(data, kwargs)
 
         out_meta = {

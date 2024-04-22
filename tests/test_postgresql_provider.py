@@ -7,7 +7,7 @@
 #          Francesco Bartoli <xbartolone@gmail.com>
 #
 # Copyright (c) 2019 Just van den Broecke
-# Copyright (c) 2023 Tom Kralidis
+# Copyright (c) 2024 Tom Kralidis
 # Copyright (c) 2022 John A Stevenson and Colin Blackburn
 # Copyright (c) 2023 Francesco Bartoli
 #
@@ -44,12 +44,12 @@ import pytest
 import pyproj
 from http import HTTPStatus
 
-import pygeofilter.ast
 from pygeofilter.parsers.ecql import parse
-from pygeofilter.values import Geometry
 
 from pygeoapi.api import API
-
+from pygeoapi.api.itemtypes import (
+    get_collection_items, get_collection_item, post_collection_items
+)
 from pygeoapi.provider.base import (
     ProviderConnectionError,
     ProviderItemNotFoundError,
@@ -61,7 +61,7 @@ import pygeoapi.provider.postgresql as postgresql_provider_module
 from pygeoapi.util import (yaml_load, geojson_to_geom,
                            get_transform_from_crs, get_crs_from_uri)
 
-from .util import get_test_file_path, mock_request
+from .util import get_test_file_path, mock_api_request
 
 PASSWORD = os.environ.get('POSTGRESQL_PASSWORD', 'postgres')
 DEFAULT_CRS = 'http://www.opengis.net/def/crs/OGC/1.3/CRS84'
@@ -156,6 +156,21 @@ def test_query_with_property_filter(config):
     assert len(other_features) != 0
     assert feature_collection['numberMatched'] == 14776
     assert feature_collection['numberReturned'] == 50
+
+
+def test_query_with_paging(config):
+    """Test query valid features with paging"""
+    p = PostgreSQLProvider(config)
+    feature_collection = p.query(limit=50)
+
+    assert feature_collection['numberMatched'] == 14776
+    assert feature_collection['numberReturned'] == 50
+
+    offset = feature_collection['numberMatched'] - 10
+
+    feature_collection = p.query(offset=offset)
+    assert feature_collection['numberMatched'] == 14776
+    assert feature_collection['numberReturned'] == 10
 
 
 def test_query_with_config_properties(config):
@@ -431,12 +446,12 @@ def test_get_collection_items_postgresql_cql(pg_api_):
     expected_ids = [80835474, 80835483]
 
     # Act
-    req = mock_request({
+    req = mock_api_request({
         'filter-lang': 'cql-text',
         'filter': cql_query
     })
-    rsp_headers, code, response = pg_api_.get_collection_items(
-        req, 'hot_osm_waterways')
+    rsp_headers, code, response = get_collection_items(
+        pg_api_, req, 'hot_osm_waterways')
 
     # Assert
     assert code == HTTPStatus.OK
@@ -445,11 +460,11 @@ def test_get_collection_items_postgresql_cql(pg_api_):
     assert ids == expected_ids
 
     # Act, no filter-lang
-    req = mock_request({
+    req = mock_api_request({
         'filter': cql_query
     })
-    rsp_headers, code, response = pg_api_.get_collection_items(
-        req, 'hot_osm_waterways')
+    rsp_headers, code, response = get_collection_items(
+        pg_api_, req, 'hot_osm_waterways')
 
     # Assert
     assert code == HTTPStatus.OK
@@ -469,12 +484,12 @@ def test_get_collection_items_postgresql_cql_invalid_filter_language(pg_api_):
     cql_query = 'osm_id BETWEEN 80800000 AND 80900000 AND name IS NULL'
 
     # Act
-    req = mock_request({
+    req = mock_api_request({
         'filter-lang': 'cql-json',  # Only cql-text is valid for GET
         'filter': cql_query
     })
-    rsp_headers, code, response = pg_api_.get_collection_items(
-        req, 'hot_osm_waterways')
+    rsp_headers, code, response = get_collection_items(
+        pg_api_, req, 'hot_osm_waterways')
 
     # Assert
     assert code == HTTPStatus.BAD_REQUEST
@@ -496,11 +511,11 @@ def test_get_collection_items_postgresql_cql_bad_cql(pg_api_, bad_cql):
     Test for bad cql
     """
     # Act
-    req = mock_request({
+    req = mock_api_request({
         'filter': bad_cql
     })
-    rsp_headers, code, response = pg_api_.get_collection_items(
-        req, 'hot_osm_waterways')
+    rsp_headers, code, response = get_collection_items(
+        pg_api_, req, 'hot_osm_waterways')
 
     # Assert
     assert code == HTTPStatus.BAD_REQUEST
@@ -526,11 +541,11 @@ def test_post_collection_items_postgresql_cql(pg_api_):
     expected_ids = [80835474, 80835483]
 
     # Act
-    req = mock_request({
+    req = mock_api_request({
         'filter-lang': 'cql-json'
     }, data=cql, **headers)
-    rsp_headers, code, response = pg_api_.post_collection_items(
-        req, 'hot_osm_waterways')
+    rsp_headers, code, response = post_collection_items(
+        pg_api_, req, 'hot_osm_waterways')
 
     # Assert
     assert code == HTTPStatus.OK
@@ -552,11 +567,11 @@ def test_post_collection_items_postgresql_cql_invalid_filter_language(pg_api_):
     headers = {'CONTENT_TYPE': 'application/query-cql-json'}
 
     # Act
-    req = mock_request({
+    req = mock_api_request({
         'filter-lang': 'cql-text'  # Only cql-json is valid for POST
     }, data=cql, **headers)
-    rsp_headers, code, response = pg_api_.post_collection_items(
-        req, 'hot_osm_waterways')
+    rsp_headers, code, response = post_collection_items(
+        pg_api_, req, 'hot_osm_waterways')
 
     # Assert
     assert code == HTTPStatus.BAD_REQUEST
@@ -582,11 +597,11 @@ def test_post_collection_items_postgresql_cql_bad_cql(pg_api_, bad_cql):
     headers = {'CONTENT_TYPE': 'application/query-cql-json'}
 
     # Act
-    req = mock_request({
+    req = mock_api_request({
         'filter-lang': 'cql-json'
     }, data=bad_cql, **headers)
-    rsp_headers, code, response = pg_api_.post_collection_items(
-        req, 'hot_osm_waterways')
+    rsp_headers, code, response = post_collection_items(
+        pg_api_, req, 'hot_osm_waterways')
 
     # Assert
     assert code == HTTPStatus.BAD_REQUEST
@@ -603,10 +618,9 @@ def test_get_collection_items_postgresql_crs(pg_api_):
     crs_32735 = 'http://www.opengis.net/def/crs/EPSG/0/32735'
 
     # Without CRS query parameter -> no coordinates transformation
-    req = mock_request({'bbox': '29.0,-2.85,29.05,-2.8'})
-    rsp_headers, code, response = pg_api_.get_collection_items(
-        req, 'hot_osm_waterways',
-    )
+    req = mock_api_request({'bbox': '29.0,-2.85,29.05,-2.8'})
+    rsp_headers, code, response = get_collection_items(
+        pg_api_, req, 'hot_osm_waterways')
 
     assert code == HTTPStatus.OK
 
@@ -615,10 +629,10 @@ def test_get_collection_items_postgresql_crs(pg_api_):
 
     # With CRS query parameter not resulting in coordinates transformation
     # (i.e. 'crs' query parameter is the same as 'storage_crs')
-    req = mock_request({'crs': storage_crs, 'bbox': '29.0,-2.85,29.05,-2.8'})
-    rsp_headers, code, response = pg_api_.get_collection_items(
-        req, 'hot_osm_waterways',
-    )
+    req = mock_api_request(
+        {'crs': storage_crs, 'bbox': '29.0,-2.85,29.05,-2.8'})
+    rsp_headers, code, response = get_collection_items(
+        pg_api_, req, 'hot_osm_waterways')
 
     assert code == HTTPStatus.OK
     assert rsp_headers['Content-Crs'] == f'<{storage_crs}>'
@@ -626,10 +640,9 @@ def test_get_collection_items_postgresql_crs(pg_api_):
     features_storage_crs = json.loads(response)
 
     # With CRS query parameter resulting in coordinates transformation
-    req = mock_request({'crs': crs_32735, 'bbox': '29.0,-2.85,29.05,-2.8'})
-    rsp_headers, code, response = pg_api_.get_collection_items(
-        req, 'hot_osm_waterways',
-    )
+    req = mock_api_request({'crs': crs_32735, 'bbox': '29.0,-2.85,29.05,-2.8'})
+    rsp_headers, code, response = get_collection_items(
+        pg_api_, req, 'hot_osm_waterways')
 
     assert code == HTTPStatus.OK
     assert rsp_headers['Content-Crs'] == f'<{crs_32735}>'
@@ -690,10 +703,9 @@ def test_get_collection_item_postgresql_crs(pg_api_):
     ]
     for fid in fid_list:
         # Without CRS query parameter -> no coordinates transformation
-        req = mock_request({'f': 'json'})
-        rsp_headers, code, response = pg_api_.get_collection_item(
-            req, 'hot_osm_waterways', fid,
-        )
+        req = mock_api_request({'f': 'json'})
+        rsp_headers, code, response = get_collection_item(
+            pg_api_, req, 'hot_osm_waterways', fid)
 
         assert code == HTTPStatus.OK
         assert rsp_headers['Content-Crs'] == f'<{DEFAULT_CRS}>'
@@ -703,10 +715,9 @@ def test_get_collection_item_postgresql_crs(pg_api_):
 
         # With CRS query parameter not resulting in coordinates transformation
         # (i.e. 'crs' query parameter is the same as 'storage_crs')
-        req = mock_request({'f': 'json', 'crs': storage_crs})
-        rsp_headers, code, response = pg_api_.get_collection_item(
-            req, 'hot_osm_waterways', fid,
-        )
+        req = mock_api_request({'f': 'json', 'crs': storage_crs})
+        rsp_headers, code, response = get_collection_item(
+            pg_api_, req, 'hot_osm_waterways', fid)
 
         assert code == HTTPStatus.OK
         assert rsp_headers['Content-Crs'] == f'<{storage_crs}>'
@@ -718,10 +729,9 @@ def test_get_collection_item_postgresql_crs(pg_api_):
         assert feat_orig['geometry'] == feat_storage_crs['geometry']
 
         # With CRS query parameter resulting in coordinates transformation
-        req = mock_request({'f': 'json', 'crs': crs_32735})
-        rsp_headers, code, response = pg_api_.get_collection_item(
-            req, 'hot_osm_waterways', fid,
-        )
+        req = mock_api_request({'f': 'json', 'crs': crs_32735})
+        rsp_headers, code, response = get_collection_item(
+            pg_api_, req, 'hot_osm_waterways', fid)
 
         assert code == HTTPStatus.OK
         assert rsp_headers['Content-Crs'] == f'<{crs_32735}>'
@@ -743,76 +753,10 @@ def test_get_collection_items_postgresql_automap_naming_conflicts(pg_api_):
     Test that PostgreSQLProvider can handle naming conflicts when automapping
     classes and relationships from database schema.
     """
-    req = mock_request()
-    rsp_headers, code, response = pg_api_.get_collection_items(
-        req, 'dummy_naming_conflicts')
+    req = mock_api_request()
+    rsp_headers, code, response = get_collection_items(
+        pg_api_, req, 'dummy_naming_conflicts')
 
     assert code == HTTPStatus.OK
     features = json.loads(response).get('features')
     assert len(features) == 0
-
-
-@pytest.mark.parametrize('original_filter, expected', [
-    pytest.param(
-        "INTERSECTS(geometry, POINT(1 1))",
-        pygeofilter.ast.GeometryIntersects(
-            pygeofilter.ast.Attribute(name='custom_geom_name'),
-            Geometry({'type': 'Point', 'coordinates': (1, 1)})
-        ),
-        id='unnested-geometry'
-    ),
-    pytest.param(
-        "some_attribute = 10 AND INTERSECTS(geometry, POINT(1 1))",
-        pygeofilter.ast.And(
-            pygeofilter.ast.Equal(
-                pygeofilter.ast.Attribute(name='some_attribute'), 10),
-            pygeofilter.ast.GeometryIntersects(
-                pygeofilter.ast.Attribute(name='custom_geom_name'),
-                Geometry({'type': 'Point', 'coordinates': (1, 1)})
-            ),
-        ),
-        id='nested-geometry'
-    ),
-    pytest.param(
-        "(some_attribute = 10 AND INTERSECTS(geometry, POINT(1 1))) OR "
-        "DWITHIN(geometry, POINT(2 2), 10, meters)",
-        pygeofilter.ast.Or(
-            pygeofilter.ast.And(
-                pygeofilter.ast.Equal(
-                    pygeofilter.ast.Attribute(name='some_attribute'), 10),
-                pygeofilter.ast.GeometryIntersects(
-                    pygeofilter.ast.Attribute(name='custom_geom_name'),
-                    Geometry({'type': 'Point', 'coordinates': (1, 1)})
-                ),
-            ),
-            pygeofilter.ast.DistanceWithin(
-                pygeofilter.ast.Attribute(name='custom_geom_name'),
-                Geometry({'type': 'Point', 'coordinates': (2, 2)}),
-                distance=10,
-                units='meters',
-            )
-        ),
-        id='complex-filter'
-    ),
-])
-def test_modify_pygeofilter(original_filter, expected):
-
-    class _CustomPostgreSqlProvider(PostgreSQLProvider):
-        """This is a subclass of the original PostgreSQLProvider.
-
-        The current test is only interested in verifying the correctness of
-        the logic that modifies the parsed filter. As such, in order
-        to simplify instantiating the postgresql pygeoapi provider, and
-        in order to avoid dealing with mocking out the sqlalchemy table
-        reflection mechanism, this class overrides the __init__() method
-        and can be used to test the implementation of the base class'
-        `self._modify_pygeofilter()` method, which is really all we want
-        to test here.
-        """
-        def __init__(self):
-            self.geom = 'custom_geom_name'
-
-    provider = _CustomPostgreSqlProvider()
-    parsed_filter = parse(original_filter)
-    result = provider._modify_pygeofilter(parsed_filter)
-    assert result == expected

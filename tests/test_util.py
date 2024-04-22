@@ -29,10 +29,16 @@
 
 from datetime import datetime, date, time
 from decimal import Decimal
+from contextlib import nullcontext as does_not_raise
 from copy import deepcopy
+from io import StringIO
+from unittest import mock
 
 import pytest
 from pyproj.exceptions import CRSError
+import pygeofilter.ast
+from pygeofilter.parsers.ecql import parse
+from pygeofilter.values import Geometry
 from shapely.geometry import Point
 
 from pygeoapi import util
@@ -71,6 +77,40 @@ def test_yaml_load(config):
     with pytest.raises(FileNotFoundError):
         with open(get_test_file_path('404.yml')) as fh:
             util.yaml_load(fh)
+
+
+@pytest.mark.parametrize('env,input_config,expected', [
+    pytest.param({}, 'foo: something', {'foo': 'something'}, id='no-env-expansion'),  # noqa E501
+    pytest.param({'FOO': 'this'}, 'foo: ${FOO}', {'foo': 'this'}),  # noqa E501
+    pytest.param({'FOO': 'this'}, 'foo: the value is ${FOO}', {'foo': 'the value is this'}, id='no-need-for-yaml-tag'),  # noqa E501
+    pytest.param({}, 'foo: ${FOO:-some default}', {'foo': 'some default'}),  # noqa E501
+    pytest.param({'FOO': 'this', 'BAR': 'that'}, 'composite: ${FOO}:${BAR}', {'composite': 'this:that'}),  # noqa E501
+    pytest.param({}, 'composite: ${FOO:-default-foo}:${BAR:-default-bar}', {'composite': 'default-foo:default-bar'}),  # noqa E501
+    pytest.param(
+        {
+            'HOST': 'fake-host',
+            'USER': 'fake',
+            'PASSWORD': 'fake-pass',
+            'DB': 'fake-db'
+        },
+        'connection: postgres://${USER}:${PASSWORD}@${HOST}:${PORT:-5432}/${DB}',  # noqa E501
+        {
+            'connection': 'postgres://fake:fake-pass@fake-host:5432/fake-db'
+        },
+        id='multiple-no-need-yaml-tag'
+    ),
+])
+def test_yaml_load_with_env_variables(
+        env: dict[str, str], input_config: str, expected):
+
+    def mock_get_env(env_var_name):
+        result = env.get(env_var_name)
+        return result
+
+    with mock.patch('pygeoapi.util.os') as mock_os:
+        mock_os.getenv.side_effect = mock_get_env
+        loaded_config = util.yaml_load(StringIO(input_config))
+        assert loaded_config == expected
 
 
 def test_str2bool():
@@ -267,19 +307,28 @@ def test_get_supported_crs_list():
             assert DUTCH_CRS in crs_list
 
 
-def test_get_crs_from_uri():
-    with pytest.raises(CRSError):
-        util.get_crs_from_uri('http://www.opengis.net/not/a/valid/crs/uri')
-    with pytest.raises(CRSError):
-        util.get_crs_from_uri('http://www.opengis.net/def/crs/EPSG/0/0')
-    CRS_DICT = {
-        'http://www.opengis.net/def/crs/OGC/1.3/CRS84': 'OGC:CRS84',
-        'http://www.opengis.net/def/crs/EPSG/0/4326': 'EPSG:4326',
-        'http://www.opengis.net/def/crs/EPSG/0/28992': 'EPSG:28992'
-    }
-    for key in CRS_DICT:
-        crs_obj = util.get_crs_from_uri(key)
-        assert crs_obj.srs == CRS_DICT[key]
+@pytest.mark.parametrize('uri, expected_raise, expected', [
+    pytest.param('http://www.opengis.net/not/a/valid/crs/uri', pytest.raises(CRSError), None),  # noqa
+    pytest.param('http://www.opengis.net/def/crs/EPSG/0/0', pytest.raises(CRSError), None),  # noqa
+    pytest.param('http://www.opengis.net/def/crs/OGC/1.3/CRS84', does_not_raise(), 'OGC:CRS84'),  # noqa
+    pytest.param('http://www.opengis.net/def/crs/EPSG/0/4326', does_not_raise(), 'EPSG:4326'),  # noqa
+    pytest.param('http://www.opengis.net/def/crs/EPSG/0/28992', does_not_raise(), 'EPSG:28992'),  # noqa
+    pytest.param('urn:ogc:def:crs:not:a:valid:crs:urn', pytest.raises(CRSError), None),  # noqa
+    pytest.param('urn:ogc:def:crs:epsg:0:0', pytest.raises(CRSError), None),
+    pytest.param('urn:ogc:def:crs:epsg::0', pytest.raises(CRSError), None),
+    pytest.param('urn:ogc:def:crs:OGC::0', pytest.raises(CRSError), None),
+    pytest.param('urn:ogc:def:crs:OGC:0:0', pytest.raises(CRSError), None),
+    pytest.param('urn:ogc:def:crs:OGC:0:CRS84', does_not_raise(), "OGC:CRS84"),
+    pytest.param('urn:ogc:def:crs:OGC::CRS84', does_not_raise(), "OGC:CRS84"),
+    pytest.param('urn:ogc:def:crs:EPSG:0:4326', does_not_raise(), "EPSG:4326"),
+    pytest.param('urn:ogc:def:crs:EPSG::4326', does_not_raise(), "EPSG:4326"),
+    pytest.param('urn:ogc:def:crs:epsg:0:4326', does_not_raise(), "EPSG:4326"),
+    pytest.param('urn:ogc:def:crs:epsg:0:28992', does_not_raise(), "EPSG:28992"),  # noqa
+])
+def test_get_crs_from_uri(uri, expected_raise, expected):
+    with expected_raise:
+        crs = util.get_crs_from_uri(uri)
+        assert crs.srs.upper() == expected
 
 
 def test_transform_bbox():
@@ -316,3 +365,177 @@ def test_prefetcher():
     headers = prefetcher.get_headers(headers['location'])
     assert int(headers.get('content-length', 0)) == length
     assert headers.get('content-type') == 'image/png'
+
+
+@pytest.mark.parametrize('original_filter, filter_crs, storage_crs, geometry_colum_name, expected', [  # noqa
+    pytest.param(
+        'INTERSECTS(geometry, POINT(1 1))',
+        'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
+        None,
+        None,
+        pygeofilter.ast.GeometryIntersects(
+            pygeofilter.ast.Attribute(name='geometry'),
+            Geometry({'type': 'Point', 'coordinates': (1, 1)})
+        ),
+        id='passthrough'
+    ),
+    pytest.param(
+        "INTERSECTS(geometry, POINT(1 1))",
+        'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
+        None,
+        'custom_geom_name',
+        pygeofilter.ast.GeometryIntersects(
+            pygeofilter.ast.Attribute(name='custom_geom_name'),
+            Geometry({'type': 'Point', 'coordinates': (1, 1)})
+        ),
+        id='unnested-geometry-name'
+    ),
+    pytest.param(
+        "some_attribute = 10 AND INTERSECTS(geometry, POINT(1 1))",
+        'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
+        None,
+        'custom_geom_name',
+        pygeofilter.ast.And(
+            pygeofilter.ast.Equal(
+                pygeofilter.ast.Attribute(name='some_attribute'), 10),
+            pygeofilter.ast.GeometryIntersects(
+                pygeofilter.ast.Attribute(name='custom_geom_name'),
+                Geometry({'type': 'Point', 'coordinates': (1, 1)})
+            ),
+        ),
+        id='nested-geometry-name'
+    ),
+    pytest.param(
+        "(some_attribute = 10 AND INTERSECTS(geometry, POINT(1 1))) OR "
+        "DWITHIN(geometry, POINT(2 2), 10, meters)",
+        'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
+        None,
+        'custom_geom_name',
+        pygeofilter.ast.Or(
+            pygeofilter.ast.And(
+                pygeofilter.ast.Equal(
+                    pygeofilter.ast.Attribute(name='some_attribute'), 10),
+                pygeofilter.ast.GeometryIntersects(
+                    pygeofilter.ast.Attribute(name='custom_geom_name'),
+                    Geometry({'type': 'Point', 'coordinates': (1, 1)})
+                ),
+            ),
+            pygeofilter.ast.DistanceWithin(
+                pygeofilter.ast.Attribute(name='custom_geom_name'),
+                Geometry({'type': 'Point', 'coordinates': (2, 2)}),
+                distance=10,
+                units='meters',
+            )
+        ),
+        id='complex-filter-name'
+    ),
+    pytest.param(
+        "INTERSECTS(geometry, POINT(12.512829 41.896698))",
+        'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
+        'http://www.opengis.net/def/crs/EPSG/0/3004',
+        None,
+        pygeofilter.ast.GeometryIntersects(
+            pygeofilter.ast.Attribute(name='geometry'),
+            Geometry({'type': 'Point', 'coordinates': (2313682.387730346, 4641308.550187246)})  # noqa
+        ),
+        id='unnested-geometry-transformed-coords'
+    ),
+    pytest.param(
+        "some_attribute = 10 AND INTERSECTS(geometry, POINT(12.512829 41.896698))",  # noqa
+        'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
+        'http://www.opengis.net/def/crs/EPSG/0/3004',
+        None,
+        pygeofilter.ast.And(
+            pygeofilter.ast.Equal(
+                pygeofilter.ast.Attribute(name='some_attribute'), 10),
+            pygeofilter.ast.GeometryIntersects(
+                pygeofilter.ast.Attribute(name='geometry'),
+                Geometry({'type': 'Point', 'coordinates': (2313682.387730346, 4641308.550187246)})  # noqa
+            ),
+        ),
+        id='nested-geometry-transformed-coords'
+    ),
+    pytest.param(
+        "(some_attribute = 10 AND INTERSECTS(geometry, POINT(12.512829 41.896698))) OR "  # noqa
+        "DWITHIN(geometry, POINT(12 41), 10, meters)",
+        'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
+        'http://www.opengis.net/def/crs/EPSG/0/3004',
+        None,
+        pygeofilter.ast.Or(
+            pygeofilter.ast.And(
+                pygeofilter.ast.Equal(
+                    pygeofilter.ast.Attribute(name='some_attribute'), 10),
+                pygeofilter.ast.GeometryIntersects(
+                    pygeofilter.ast.Attribute(name='geometry'),
+                    Geometry({'type': 'Point', 'coordinates': (2313682.387730346, 4641308.550187246)})  # noqa
+                ),
+            ),
+            pygeofilter.ast.DistanceWithin(
+                pygeofilter.ast.Attribute(name='geometry'),
+                Geometry({'type': 'Point', 'coordinates': (2267681.8892602, 4543101.513292163)}),  # noqa
+                distance=10,
+                units='meters',
+            )
+        ),
+        id='complex-filter-transformed-coords'
+    ),
+    pytest.param(
+        "INTERSECTS(geometry, SRID=3857;POINT(1392921 5145517))",
+        'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
+        'http://www.opengis.net/def/crs/EPSG/0/3004',
+        None,
+        pygeofilter.ast.GeometryIntersects(
+            pygeofilter.ast.Attribute(name='geometry'),
+            Geometry({'type': 'Point', 'coordinates': (2313681.8086284213, 4641307.939955416)})  # noqa
+        ),
+        id='unnested-geometry-transformed-coords-explicit-input-crs-ewkt'
+    ),
+    pytest.param(
+        "INTERSECTS(geometry, POINT(1392921 5145517))",
+        'http://www.opengis.net/def/crs/EPSG/0/3857',
+        'http://www.opengis.net/def/crs/EPSG/0/3004',
+        None,
+        pygeofilter.ast.GeometryIntersects(
+            pygeofilter.ast.Attribute(name='geometry'),
+            Geometry({'type': 'Point', 'coordinates': (2313681.8086284213, 4641307.939955416)})  # noqa
+        ),
+        id='unnested-geometry-transformed-coords-explicit-input-crs-filter-crs'
+    ),
+    pytest.param(
+        "INTERSECTS(geometry, SRID=3857;POINT(1392921 5145517))",
+        'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
+        'http://www.opengis.net/def/crs/EPSG/0/3004',
+        None,
+        pygeofilter.ast.GeometryIntersects(
+            pygeofilter.ast.Attribute(name='geometry'),
+            Geometry({'type': 'Point', 'coordinates': (2313681.8086284213, 4641307.939955416)})  # noqa
+        ),
+        id='unnested-geometry-transformed-coords-ewkt-crs-overrides-filter-crs'
+    ),
+    pytest.param(
+        "INTERSECTS(geometry, POINT(12.512829 41.896698))",
+        'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
+        'http://www.opengis.net/def/crs/EPSG/0/3004',
+        'custom_geom_name',
+        pygeofilter.ast.GeometryIntersects(
+            pygeofilter.ast.Attribute(name='custom_geom_name'),
+            Geometry({'type': 'Point', 'coordinates': (2313682.387730346, 4641308.550187246)})  # noqa
+        ),
+        id='unnested-geometry-name-and-transformed-coords'
+    ),
+])
+def test_modify_pygeofilter(
+        original_filter,
+        filter_crs,
+        storage_crs,
+        geometry_colum_name,
+        expected
+):
+    parsed_filter = parse(original_filter)
+    result = util.modify_pygeofilter(
+        parsed_filter,
+        filter_crs_uri=filter_crs,
+        storage_crs_uri=storage_crs,
+        geometry_column_name=geometry_colum_name
+    )
+    assert result == expected
