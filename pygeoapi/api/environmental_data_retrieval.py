@@ -52,7 +52,7 @@ from pygeoapi.util import (
     to_json, filter_dict_by_key_value
 )
 
-from . import APIRequest, API, F_HTML, validate_datetime, validate_bbox
+from . import APIRequest, API, F_JSON, F_HTML, F_ZARR, F_NETCDF, FORMAT_TYPES, validate_datetime, validate_bbox
 
 LOGGER = logging.getLogger(__name__)
 
@@ -198,10 +198,36 @@ def get_collection_edr_query(api: API, request: APIRequest,
         content = render_j2_template(api.tpl_config,
                                      'collections/edr/query.html', data,
                                      api.default_locale)
-    else:
+        return headers, HTTPStatus.OK, content
+    elif request.format == F_JSON:  # render
         content = to_json(data, api.pretty_print)
+        headers['Content-Type'] = 'application/prs.coverage+json'
+        return headers, HTTPStatus.OK, content
+    elif request.format == F_NETCDF:  # native format
+        filename = "out.nc"
+        if p.filename is not None:
+            filename = p.filename
 
-    return headers, HTTPStatus.OK, content
+        cd = f'attachment; filename="{filename}"'
+        headers['Content-Disposition'] = cd
+
+        headers['Content-Type'] = FORMAT_TYPES[request.format]
+        return headers, HTTPStatus.OK, data
+    elif request.format == F_ZARR:  # native format
+        filename = "out.zarr.zip"
+        if p.filename is not None:
+            filename = p.filename
+
+        cd = f'attachment; filename="{filename}"'
+        headers['Content-Disposition'] = cd
+
+        headers['Content-Type'] = FORMAT_TYPES[request.format]
+        return headers, HTTPStatus.OK, data
+    else:
+        headers['Content-Type'] = 'application/prs.coverage+json'
+        return headers, HTTPStatus.OK, to_json(data, api.pretty_print)
+
+
 
 
 def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, dict]]:  # noqa

@@ -205,12 +205,7 @@ class XarrayProvider(BaseProvider):
             raise ProviderNoDataError(msg)
 
         out_meta = {
-                        'bbox': [
-                self._data.coords[self.y_field].values[-1],
-                self._data.coords[self.x_field].values[0],
-                self._data.coords[self.y_field].values[0],
-                self._data.coords[self.x_field].values[-1],
-            ],
+                        'bbox': self._extract_extent_from_data(data),
             "time": [
                 _to_datetime_string(data.coords[self.time_field].values[0]),
                 _to_datetime_string(data.coords[self.time_field].values[-1])
@@ -252,20 +247,6 @@ class XarrayProvider(BaseProvider):
         minx, miny, maxx, maxy = metadata['bbox']
         mint, maxt = metadata['time']
 
-        try:
-            tmp_min = data.coords[self.y_field].values[0]
-        except IndexError:
-            tmp_min = data.coords[self.y_field].values
-        try:
-            tmp_max = data.coords[self.y_field].values[-1]
-        except IndexError:
-            tmp_max = data.coords[self.y_field].values
-
-        if tmp_min > tmp_max:
-            LOGGER.debug(f'Reversing direction of {self.y_field}')
-            miny = tmp_max
-            maxy = tmp_min
-
         cj = {
             'type': 'Coverage',
             'domain': {
@@ -273,13 +254,13 @@ class XarrayProvider(BaseProvider):
                 'domainType': 'Grid',
                 'axes': {
                     'x': {
-                        'start': minx,
-                        'stop': maxx,
+                        'start': data.coords[self.x_field].values[0],
+                        'stop': data.coords[self.x_field].values[-1],
                         'num': metadata['width']
                     },
                     'y': {
-                        'start': miny,
-                        'stop': maxy,
+                        'start': data.coords[self.y_field].values[0],
+                        'stop': data.coords[self.y_field].values[-1],
                         'num': metadata['height']
                     },
                     self.time_api_label: {
@@ -323,6 +304,7 @@ class XarrayProvider(BaseProvider):
 
         try:
             for key, value in self.fields.items():
+                values = data[key].values.flatten().tolist()
                 cj['ranges'][key] = {
                     'type': 'NdArray',
                     'dataType': value['type'],
@@ -375,12 +357,7 @@ class XarrayProvider(BaseProvider):
         # all of the attributes based on lat lon vars
 
         properties = {
-            'bbox': [
-                self._data.coords[self.y_field].values[-1],
-                self._data.coords[self.x_field].values[0],
-                self._data.coords[self.y_field].values[0],
-                self._data.coords[self.x_field].values[-1],
-            ],
+            'bbox': self._extract_extent_from_data(self._data),
             'time_range': [
                 _to_datetime_string(
                     self._data.coords[self.time_field].values[0]
@@ -408,7 +385,7 @@ class XarrayProvider(BaseProvider):
 
         if 'crs' in self._data.variables.keys():
             try:
-                properties['bbox_crs'] = f'http://www.opengis.net/def/crs/OGC/1.3/{self._data.crs.epsg_code}'  # noqa
+                properties['bbox_crs'] = f'http://www.opengis.net/def/crs/EPSG/0/{self._data.crs.epsg_code}'  # noqa
 
                 properties['inverse_flattening'] = self._data.crs.\
                     inverse_flattening
@@ -424,6 +401,19 @@ class XarrayProvider(BaseProvider):
         ]
 
         return properties
+
+    def _extract_extent_from_data(self, data):
+        minx = data.coords[self.x_field].values[0]
+        maxx = data.coords[self.x_field].values[-1]
+        if minx > maxx:
+            minx, maxx = maxx, minx
+        miny = data.coords[self.y_field].values[0]
+        maxy = data.coords[self.y_field].values[-1]
+        if miny > maxy:
+            miny, maxy = maxy, miny
+
+        return [minx, miny, maxx, maxy]
+
 
     @staticmethod
     def _get_parameter_metadata(name, attrs):
@@ -545,12 +535,28 @@ def _get_zarr_data(data):
 
     data.to_zarr(zarr_data_filename, mode='w')
 
+    data.to_zarr("~/Temp/tmp_out.zarr", mode='w')
+
     with zipfile.ZipFile(zarr_zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:  # noqa
         _zip_dir(zarr_data_filename, zipf, os.getcwd())
 
     with open(zarr_zip_filename, 'rb') as fh:
         return fh.read()
 
+def _get_netcdf_data(data):
+    """
+       Returns bytes to read from Zarr directory zip
+       :param data: Xarray dataset of coverage data
+
+       :returns: byte array of zip data
+       """
+
+    tmp_dir = tempfile.TemporaryDirectory().name
+    data_filename = f'{tmp_dir}out.nc'
+    data.to_netcdf(data_filename, mode='w')
+    data.to_netcdf("~/Temp/tmp_out.nc", mode='w')
+    with open(data_filename, 'rb') as fh:
+        return fh.read()
 
 def _convert_float32_to_float64(data):
     """

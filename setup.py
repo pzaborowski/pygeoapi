@@ -30,7 +30,7 @@
 import os
 from pathlib import Path
 import re
-from setuptools import Command, find_packages, setup
+from setuptools import Command, find_packages, setup, find_namespace_packages
 import shutil
 
 
@@ -156,7 +156,7 @@ setup(
     maintainer_email='tomkralidis@gmail.com',
     url='https://pygeoapi.io',
     install_requires=read('requirements.txt').splitlines(),
-    packages=find_packages(exclude=['pygeoapi.tests']),
+    packages=find_namespace_packages(exclude=['pygeoapi.tests']),
     include_package_data=True,
     entry_points={
         'console_scripts': [

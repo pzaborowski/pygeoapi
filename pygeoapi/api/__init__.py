@@ -87,6 +87,7 @@ F_PNG = 'png'
 F_JPEG = 'jpeg'
 F_MVT = 'mvt'
 F_NETCDF = 'NetCDF'
+F_ZARR = 'zarr'
 
 #: Formats allowed for ?f= requests (order matters for complex MIME types)
 FORMAT_TYPES = OrderedDict((
@@ -97,6 +98,7 @@ FORMAT_TYPES = OrderedDict((
     (F_JPEG, 'image/jpeg'),
     (F_MVT, 'application/vnd.mapbox-vector-tile'),
     (F_NETCDF, 'application/x-netcdf'),
+    (F_ZARR, 'application/x-zarr'),
 ))
 
 #: Locale used for system responses (e.g. exceptions)
