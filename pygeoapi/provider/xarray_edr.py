@@ -38,6 +38,8 @@ from pygeoapi.provider.xarray_ import (
     _to_datetime_string,
     _convert_float32_to_float64,
     XarrayProvider,
+    _get_zarr_data,
+    _get_netcdf_data
 )
 import pandas as pd
 LOGGER = logging.getLogger(__name__)
@@ -191,6 +193,7 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
         LOGGER.debug(f"Query type: {kwargs.get('query_type')}")
 
         bbox = kwargs.get('bbox')
+        format_ = kwargs.get('format_')
         xmin, ymin, xmax, ymax = self._configure_bbox(bbox)
 
         if len(bbox) == 4:
@@ -236,12 +239,7 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
         time, time_steps = self._parse_time_metadata(data, kwargs)
 
         out_meta = {
-            'bbox': [
-                data.coords[self.x_field].values[0],
-                data.coords[self.y_field].values[0],
-                data.coords[self.x_field].values[-1],
-                data.coords[self.y_field].values[-1]
-            ],
+            'bbox': self._extract_extent_from_data(data),
             "time": time,
             "driver": "xarray",
             "height": height,
@@ -252,8 +250,18 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
             "variables": {var_name: var.attrs
                           for var_name, var in data.variables.items()}
         }
+        LOGGER.debug('Serializing data in memory')
+        if format_ == 'zarr':
+            LOGGER.debug('Returning data in native zarr format')
+            return _get_zarr_data(data)
+        elif format_ == 'NetCDF':  # return data in native format
+            LOGGER.debug('Returning data in native netcdf format')
+            return _get_netcdf_data(data)
+        else:
+            LOGGER.debug('Creating output in CoverageJSON')
+            return self.gen_covjson(out_meta, data, self.fields)
 
-        return self.gen_covjson(out_meta, data, self.fields)
+
 
     def _make_datetime(self, datetime_):
         """

@@ -445,7 +445,7 @@ def render_j2_template(config: dict, template: Path,
         templates = config['server']['templates']['path']
         template_paths.insert(0, templates)
         LOGGER.debug(f'using custom templates: {templates}')
-    except (KeyError, TypeError):
+    except (KeyError, TypeErrread_dataor):
         LOGGER.debug(f'using default templates: {TEMPLATES}')
 
     env = Environment(loader=FileSystemLoader(template_paths),
