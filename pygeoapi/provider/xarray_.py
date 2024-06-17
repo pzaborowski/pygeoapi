@@ -37,10 +37,11 @@ import zipfile
 import xarray
 import fsspec
 import numpy as np
-import pandas as pd
-import json
-import numpy
-from numpy import ndarray
+
+import io
+import zarr
+import zipfile
+from threading import RLock
 
 from pygeoapi.provider.base import (BaseProvider,
                                     ProviderConnectionError,
@@ -519,6 +520,17 @@ def _zip_dir(path, ziph, cwd):
             ziph.write(new_path)
             os.chdir(cwd)
 
+def _get_zarr_data_memory(data):
+    #TODO currently it writed empty bytesIO
+    return NotImplementedError
+
+    zip_buffer = io.BytesIO()
+    store = MemoryZipStore(zip_buffer)
+    data.to_zarr(store)
+    LOGGER.debug(str(zip_buffer.read(20)))
+    return zip_buffer.read()
+
+
 
 def _get_zarr_data(data):
     """
@@ -527,18 +539,22 @@ def _get_zarr_data(data):
 
        :returns: byte array of zip data
        """
-
     tmp_dir = tempfile.TemporaryDirectory().name
-
-    zarr_data_filename = f'{tmp_dir}zarr.zarr'
     zarr_zip_filename = f'{tmp_dir}zarr.zarr.zip'
+    store = zarr.storage.ZipStore(zarr_zip_filename, mode="w")
+    data.to_zarr(store)
+    store.close()
 
-    data.to_zarr(zarr_data_filename, mode='w')
 
-    data.to_zarr("~/Temp/tmp_out.zarr", mode='w')
 
-    with zipfile.ZipFile(zarr_zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:  # noqa
-        _zip_dir(zarr_data_filename, zipf, os.getcwd())
+    #zarr_data_filename = f'{tmp_dir}zarr.zarr'
+    #zarr_zip_filename = f'{tmp_dir}zarr.zarr.zip'
+
+    #data.to_zarr(zarr_data_filename, mode='w')
+
+
+    #with zipfile.ZipFile(zarr_zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:  # noqa
+    #    _zip_dir(zarr_data_filename, zipf, os.getcwd())
 
     with open(zarr_zip_filename, 'rb') as fh:
         return fh.read()
@@ -573,3 +589,21 @@ def _convert_float32_to_float64(data):
             data[var_name].attrs = og_attrs
 
     return data
+
+
+class MemoryZipStore(zarr.ZipStore):
+    def __delitem__(self, key):
+        self.zf.close()
+
+    def __init__(self, path, compression=zipfile.ZIP_STORED, allowZip64=True, mode='a',
+                 dimension_separator=None):
+        if isinstance(path, str):  # this is the only change needed to make this work
+            path = os.path.abspath(path)
+        self.path = path
+        self.compression = compression
+        self.allowZip64 = allowZip64
+        self.mode = mode
+        self._dimension_separator = dimension_separator
+        self.mutex = RLock()
+        self.zf = zipfile.ZipFile(path, mode=mode, compression=compression,
+                                  allowZip64=allowZip64)

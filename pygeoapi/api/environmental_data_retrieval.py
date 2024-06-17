@@ -42,6 +42,7 @@ from http import HTTPStatus
 import logging
 from typing import Tuple
 
+
 from shapely.errors import WKTReadingError
 from shapely.wkt import loads as shapely_loads
 
@@ -214,7 +215,8 @@ def get_collection_edr_query(api: API, request: APIRequest,
         headers['Content-Type'] = FORMAT_TYPES[request.format]
         return headers, HTTPStatus.OK, data
     elif request.format == F_ZARR:  # native format
-        filename = "out.zarr.zip"
+
+        filename = "out_zarr.zip"
         if p.filename is not None:
             filename = p.filename
 
@@ -226,8 +228,6 @@ def get_collection_edr_query(api: API, request: APIRequest,
     else:
         headers['Content-Type'] = 'application/prs.coverage+json'
         return headers, HTTPStatus.OK, to_json(data, api.pretty_print)
-
-
 
 
 def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, dict]]:  # noqa
@@ -319,7 +319,8 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
                         ],
                         'responses': {
                             '200': {'$ref': f"{OPENAPI_YAML['oapif-1']}#/components/responses/Features"},  # noqa
-                            '400': {'$ref': f"{OPENAPI_YAML['oapif-1']}#/components/responses/InvalidParameter"},  # noqa
+                            '400': {'$ref': f"{OPENAPI_YAML['oapif-1']}#/components/responses/InvalidParameter"},
+                            # noqa
                             '500': {'$ref': f"{OPENAPI_YAML['oapif-1']}#/components/responses/ServerError"}  # noqa
                         }
                     }
@@ -354,3 +355,6 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
                 }
 
     return [{'name': 'edr'}], {'paths': paths}
+
+
+

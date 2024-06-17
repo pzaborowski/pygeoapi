@@ -38,10 +38,11 @@ from pygeoapi.provider.xarray_ import (
     _to_datetime_string,
     _convert_float32_to_float64,
     XarrayProvider,
-    _get_zarr_data,
+    _get_zarr_data, _get_zarr_data_memory,
     _get_netcdf_data
 )
 import pandas as pd
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -294,6 +295,8 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
 
         :returns: list of temporal extent
         """
+        LOGGER.debug("self.time_field: " + self.time_field)
+        LOGGER.debug(str(data.coords['time']))
         time = data.coords[self.time_field]
         if time.size == 0:
             raise ProviderNoDataError()
