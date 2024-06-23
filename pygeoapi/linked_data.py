@@ -111,6 +111,8 @@ def jsonldify(func: Callable) -> Callable:
           }
         }
         cls.fcmld = fcmld
+        collections_context = cls.config['metadata']['linked-data'].get('collections-context', {})
+        fcmld["@context"].append(collections_context)
         return func(cls, *args[1:], **kwargs)
     return inner
 
@@ -193,8 +195,15 @@ def geojson2jsonld(cls, data: dict, dataset: str,
     jsonld = cls.config['resources'][dataset].get('linked-data', {})
     ds_url = f"{cls.get_collections_url()}/{dataset}"
 
+    direct_context = jsonld.get('direct-context', None)
     context = jsonld.get('context', []).copy()
     template = jsonld.get('item_template', None)
+
+    if direct_context:
+        return {
+            '@context': direct_context,
+            **data
+        }
 
     defaultVocabulary = {
         'schema': 'https://schema.org/',
