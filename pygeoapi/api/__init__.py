@@ -1283,19 +1283,15 @@ class API:
             return headers, HTTPStatus.OK, content
 
         if request.format == F_JSONLD:
-            if cls.config['metadata']['linked-data']:
-                jsonld = fcm
-                jsonld["@context"] = self.fcmld.copy()["@context"]
+            jsonld = self.fcmld.copy()
+            if dataset is not None:
+                jsonld['dataset'] = jsonldify_collection(self, fcm,
+                                                         request.locale)
             else:
-                jsonld = self.fcmld.copy()
-                if dataset is not None:
-                    jsonld['dataset'] = jsonldify_collection(self, fcm,
-                                                             request.locale)
-                else:
-                    jsonld['dataset'] = [
-                        jsonldify_collection(self, c, request.locale)
-                        for c in fcm.get('collections', [])
-                    ]
+                jsonld['dataset'] = [
+                    jsonldify_collection(self, c, request.locale)
+                    for c in fcm.get('collections', [])
+                ]
 
             return headers, HTTPStatus.OK, to_json(jsonld, self.pretty_print)
 
