@@ -112,7 +112,7 @@ def jsonldify(func: Callable) -> Callable:
         }
         cls.fcmld = fcmld
         collections_context = cls.config['metadata']['linked-data'].get('collections-context', {})
-        fcmld["@context"].append(collections_context)
+        fcmld["@context"] = [fcmld["@context"], collections_context]
         return func(cls, *args[1:], **kwargs)
     return inner
 

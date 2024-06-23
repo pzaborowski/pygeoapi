@@ -40,6 +40,7 @@ PLUGINS = {
     'provider': {
         'AzureBlobStorage': 'pygeoapi.provider.azure_.AzureBlobStorageProvider',  # noqa
         'CSV': 'pygeoapi.provider.csv_.CSVProvider',
+        'CSVObs': 'pygeoapi.provider.csv_obs.CSVObsProvider',
         'CSWFacade': 'pygeoapi.provider.csw_facade.CSWFacadeProvider',
         'Elasticsearch': 'pygeoapi.provider.elasticsearch_.ElasticsearchProvider',  # noqa
         'ElasticsearchCatalogue': 'pygeoapi.provider.elasticsearch_.ElasticsearchCatalogueProvider',  # noqa
