@@ -7,12 +7,14 @@
 #          Colin Blackburn <colb@bgs.ac.uk>
 #          Ricardo Garcia Silva <ricardo.garcia.silva@geobeyond.it>
 #          Bernhard Mallinger <bernhard.mallinger@eox.at>
+#          Francesco Martinelli <francesco.martinelli@ingv.it>
 #
 # Copyright (c) 2024 Tom Kralidis
 # Copyright (c) 2022 Francesco Bartoli
 # Copyright (c) 2022 John A Stevenson and Colin Blackburn
 # Copyright (c) 2023 Ricardo Garcia Silva
 # Copyright (c) 2024 Bernhard Mallinger
+# Copyright (c) 2024 Francesco Martinelli
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -374,6 +376,9 @@ def execute_process(api: API, request: APIRequest,
     data_dict = data.get('inputs', {})
     LOGGER.debug(data_dict)
 
+    requested_outputs = data.get('outputs')
+    LOGGER.debug(f'outputs: {requested_outputs}')
+
     subscriber = None
     subscriber_dict = data.get('subscriber')
     if subscriber_dict:
@@ -401,6 +406,7 @@ def execute_process(api: API, request: APIRequest,
         LOGGER.debug('Executing process')
         result = api.manager.execute_process(
             process_id, data_dict, execution_mode=execution_mode,
+            requested_outputs=requested_outputs,
             subscriber=subscriber)
         job_id, mime_type, outputs, status, additional_headers = result
         headers.update(additional_headers or {})
@@ -720,7 +726,7 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
     paths['/jobs/{jobId}/results'] = {
         'get': {
             'summary': 'Retrieve job results',
-            'description': 'Retrive job resiults',
+            'description': 'Retrieve job results',
             'tags': ['jobs'],
             'parameters': [
                 name_in_path,
@@ -735,4 +741,4 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
         }
     }
 
-    return [{'name': 'proceses'}, {'name': 'jobs'}], {'paths': paths}
+    return [{'name': 'processes'}, {'name': 'jobs'}], {'paths': paths}
