@@ -82,6 +82,7 @@ class XarrayProvider(BaseProvider):
                 data_to_open = self.data
 
             self._data = open_func(data_to_open)
+            self.time_axis = provider_def.get('time_axis')
             self._coverage_properties = self._get_coverage_properties()
 
             self.axes = [self._coverage_properties['x_axis_label'],
@@ -265,10 +266,8 @@ class XarrayProvider(BaseProvider):
                         'stop': stopy,
                         'num': metadata['height']
                     },
-                    self.time_field: {
-                        'start': mint,
-                        'stop': maxt,
-                        'num': metadata['time_steps']
+                    self._coverage_properties['time_axis_label']: {
+                        'values': [str(i) for i in data.coords['time'].values]
                     }
                 },
                 'referencing': [{
@@ -372,7 +371,7 @@ class XarrayProvider(BaseProvider):
             'crs_type': 'GeographicCRS',
             'x_axis_label': self.x_field,
             'y_axis_label': self.y_field,
-            'time_axis_label': self.time_field,
+            'time_axis_label':  self.time_field if not self.time_axis else self.time_axis,
             'width': self._data.sizes[self.x_field],
             'height': self._data.sizes[self.y_field],
             'time': self._data.sizes[self.time_field],

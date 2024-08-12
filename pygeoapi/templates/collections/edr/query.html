@@ -50,6 +50,11 @@
           var layer = C.dataLayer(cov, {parameter: p.key})
             .on('afterAdd', function () {
               C.legend(layer).addTo(map)
+              
+              if (layer.timeSlices) {
+  	            new C.TimeAxis(layer).addTo(map)
+                }
+
               map.fitBounds(layer.getBounds())
             })
             .addTo(map)
