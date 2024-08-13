@@ -371,7 +371,8 @@ class XarrayProvider(BaseProvider):
             'crs_type': 'GeographicCRS',
             'x_axis_label': self.x_field,
             'y_axis_label': self.y_field,
-            'time_axis_label':  self.time_field if not self.time_axis else self.time_axis,
+            'time_axis_label':  self.time_field
+                            if not self.time_axis else self.time_axis,
             'width': self._data.sizes[self.x_field],
             'height': self._data.sizes[self.y_field],
             'time': self._data.sizes[self.time_field],

@@ -56,7 +56,6 @@ class XarrayEDRProvider(BaseEDRProvider, XarrayProvider):
 
         BaseEDRProvider.__init__(self, provider_def)
         XarrayProvider.__init__(self, provider_def)
-        
 
     @BaseEDRProvider.register()
     def position(self, **kwargs):
