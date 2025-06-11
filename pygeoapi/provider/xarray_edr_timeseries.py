@@ -56,7 +56,7 @@ class XarrayEDRTimeSeriesProvider(XarrayEDRProvider):
         """
 
         BaseEDRProvider.__init__(self, provider_def)
-        XarrayProvider.__init__(self, provider_def)
+        # XarrayProvider.__init__(self, provider_def)
         self._context = provider_def.get('context')
         self._lat = provider_def.get('lat')
         self._lon = provider_def.get('lon')
@@ -167,9 +167,11 @@ class XarrayEDRTimeSeriesProvider(XarrayEDRProvider):
         return self.gen_covjson(out_meta, data, self.fields)
 
 
-
     @BaseEDRProvider.register()
     def cube(self, **kwargs):
+        return json
+
+    def cube2(self, **kwargs):
         """
         Extract data from collection
 
@@ -218,7 +220,7 @@ class XarrayEDRTimeSeriesProvider(XarrayEDRProvider):
         if ts & ts > 1:
             json = {"type": "CoverageCollection",
                     "domain": self._domainType}
-            for t in _data.
+            # for t in _data.
         else:
             json = {"type": "Coverage",
                     "domain": self._domainType}
@@ -313,6 +315,7 @@ class XarrayEDRTimeSeriesProvider(XarrayEDRProvider):
                     }
 
         return self._fields
+    
 
 def _get_coverage_properties(self):
         """
@@ -414,83 +417,328 @@ def _get_coverage_properties(self):
 
 
 json = {
-            "type" : "Coverage",
-            "domain" : {
-                "type" : "Domain",
-                "domainType" : "PointSeries",
+"@context": "PoitSeries_covjson_context.json",
+
+"type": "CoverageCollection",
+    "domainType": "PointSeries",
+    "coverages": [
+        {
+            "type": "Coverage",
+            "domain": {
+                "type": "Domain",
+                "domainType": "PointSeries",
                 "axes": {
-                "x" : { "values": [-10.1] },
-                "y" : { "values": [ -40.2] },
-                "t" : { "values": ["2013-01-01","2013-01-02","2013-01-03",
-                                    "2013-01-04","2013-01-05","2013-01-06"] }
-                },
-                "referencing": [{
-                "coordinates": ["x","y"],
-                "system": {
-                    "type": "GeographicCRS",
-                    "id": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
-                }
-                }, {
-                "coordinates": ["t"],
-                "system": {
-                    "type": "TemporalRS",
-                    "calendar": "Gregorian"
-                }
-                }]
-            },
-            "parameters" : {
-                "PSAL": {
-                "type" : "Parameter",
-                "description" : {
-                    "en": "The measured salinity, in practical salinity units (psu) of the sea water "
-                },
-                "unit" : {
-                    "symbol" : "psu"
-                },
-                "observedProperty" : {
-                    "id" : "http://vocab.nerc.ac.uk/standard_name/sea_water_salinity/",
-                    "label" : {
-                    "en": "Sea Water Salinity"
-                    }
-                }
-                },
-                "POTM": {
-                "type" : "Parameter",
-                "description" : {
-                    "en": "The potential temperature, in degrees celcius, of the sea water"
-                },
-                "unit" : {
-                    "label": {
-                    "en": "Degree Celsius"
+                    "x": {
+                        "values": [
+                            10.38
+                        ]
                     },
-                    "symbol": {
-                    "value": "Cel",
-                    "type": "http://www.opengis.net/def/uom/UCUM/"
+                    "y": {
+                        "values": [
+                            63.45
+                        ]
+                    },
+                    "t": {
+                        "values": [
+                            "2023-05-01T02:25:00.220884Z",
+                            "2023-05-01T02:25:00.495122Z",
+                            "2023-05-01T02:25:00.766311Z",
+                            "2023-05-01T02:25:01.004612Z",
+                            "2023-05-01T02:25:01.260151Z",
+                            "2023-05-01T02:25:01.512621Z",
+                            "2023-05-01T02:25:01.771173Z",
+                            "2023-05-01T02:25:02.030591Z",
+                            "2023-05-01T02:25:02.282038Z",
+                            "2023-05-01T02:25:02.551530Z",
+                            "2023-05-01T02:25:02.811774Z",
+                            "2023-05-01T02:25:03.065329Z",
+                            "2023-05-01T02:25:03.324483Z",
+                            "2023-05-01T02:25:03.614945Z",
+                            "2023-05-01T02:25:03.833189Z",
+                            "2023-05-01T02:25:04.088417Z",
+                            "2023-05-01T02:25:04.348780Z",
+                            "2023-05-01T02:25:04.631882Z",
+                            "2023-05-01T02:25:04.855665Z",
+                            "2023-05-01T02:25:05.111529Z",
+                            "2023-05-01T02:25:05.365418Z",
+                            "2023-05-01T02:25:05.647753Z",
+                            "2023-05-01T02:25:05.896674Z",
+                            "2023-05-01T02:25:06.149324Z",
+                            "2023-05-01T02:25:06.388435Z",
+                            "2023-05-01T02:25:06.644165Z",
+                            "2023-05-01T02:25:06.900207Z",
+                            "2023-05-01T02:25:07.189128Z",
+                            "2023-05-01T02:25:07.412020Z",
+                            "2023-05-01T02:25:07.683262Z",
+                            "2023-05-01T02:25:07.923251Z",
+                            "2023-05-01T02:25:08.211929Z",
+                            "2023-05-01T02:25:08.435435Z",
+                            "2023-05-01T02:25:08.705088Z",
+                            "2023-05-01T02:25:08.964073Z",
+                            "2023-05-01T02:25:09.229096Z",
+                            "2023-05-01T02:25:09.487350Z",
+                            "2023-05-01T02:25:09.728144Z",
+                            "2023-05-01T02:25:09.969168Z",
+                            "2023-05-01T02:25:10.225117Z",
+                            "2023-05-01T02:25:10.513866Z",
+                            "2023-05-01T02:25:10.751131Z",
+                            "2023-05-01T02:25:11.007012Z",
+                            "2023-05-01T02:25:11.246703Z",
+                            "2023-05-01T02:25:11.535958Z",
+                            "2023-05-01T02:25:11.774015Z",
+                            "2023-05-01T02:25:12.029997Z",
+                            "2023-05-01T02:25:12.292883Z",
+                            "2023-05-01T02:25:12.574198Z",
+                            "2023-05-01T02:25:12.797988Z",
+                            "2023-05-01T02:25:13.068364Z",
+                            "2023-05-01T02:25:13.336998Z",
+                            "2023-05-01T02:25:13.611984Z",
+                            "2023-05-01T02:25:13.835786Z",
+                            "2023-05-01T02:25:14.091770Z",
+                            "2023-05-01T02:25:14.354784Z",
+                            "2023-05-01T02:25:14.628890Z",
+                            "2023-05-01T02:25:14.889788Z",
+                            "2023-05-01T02:25:15.114740Z",
+                            "2023-05-01T02:25:15.385966Z",
+                            "2023-05-01T02:25:15.625563Z",
+                            "2023-05-01T02:25:15.909869Z",
+                            "2023-05-01T02:25:16.155843Z",
+                            "2023-05-01T02:25:16.424172Z",
+                            "2023-05-01T02:25:16.648718Z",
+                            "2023-05-01T02:25:16.904558Z",
+                            "2023-05-01T02:25:17.160612Z",
+                            "2023-05-01T02:25:17.462616Z",
+                            "2023-05-01T02:25:17.686507Z",
+                            "2023-05-01T02:25:17.942712Z",
+                            "2023-05-01T02:25:18.183681Z",
+                            "2023-05-01T02:25:18.473353Z",
+                            "2023-05-01T02:25:18.710010Z",
+                            "2023-05-01T02:25:18.965445Z",
+                            "2023-05-01T02:25:19.224450Z",
+                            "2023-05-01T02:25:19.489494Z",
+                            "2023-05-01T02:25:19.764185Z",
+                            "2023-05-01T02:25:19.988400Z",
+                            "2023-05-01T02:25:20.244362Z",
+                            "2023-05-01T02:25:20.500546Z",
+                            "2023-05-01T02:25:20.787307Z",
+                            "2023-05-01T02:25:21.011405Z"
+                        ]
                     }
                 },
-                "observedProperty" : {
-                    "id" : "http://vocab.nerc.ac.uk/standard_name/sea_water_potential_temperature/",
-                    "label" : {
-                    "en": "Sea Water Potential Temperature"
+                "referencing": [
+                    {
+                        "coordinates": [
+                            "x",
+                            "y"
+                        ],
+                        "system": {
+                            "type": "GeographicCRS",
+                            "id": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+                        }
+                    },
+                    {
+                        "coordinates": [
+                            "t"
+                        ],
+                        "system": {
+                            "type": "TemporalRS",
+                            "calendar": "Gregorian"
+                        }
                     }
-                }
+                ]
+            },
+            "ranges": {
+                "sea_water_temperature": {
+                    "type": "NdArray",
+                    "dataType": "float",
+                    "axisNames": [
+                        "x",
+                        "y",
+                        "t"
+                    ],
+                    "shape": [
+                        1,
+                        1,
+                        82
+                    ],
+                    "values": [
+                        6.526,
+                        6.5265,
+                        6.5267,
+                        6.5268,
+                        6.5269,
+                        6.5266,
+                        6.5264,
+                        6.5264,
+                        6.5268,
+                        6.5267,
+                        6.5268,
+                        6.5267,
+                        6.5267,
+                        6.5268,
+                        6.5268,
+                        6.5266,
+                        6.5265,
+                        6.5265,
+                        6.5265,
+                        6.5265,
+                        6.5268,
+                        6.5268,
+                        6.5268,
+                        6.5267,
+                        6.5265,
+                        6.5265,
+                        6.5267,
+                        6.5268,
+                        6.5267,
+                        6.5267,
+                        6.5268,
+                        6.5268,
+                        6.5268,
+                        6.5268,
+                        6.5268,
+                        6.5269,
+                        6.5269,
+                        6.5268,
+                        6.5268,
+                        6.5268,
+                        6.5269,
+                        6.5269,
+                        6.5269,
+                        6.5269,
+                        6.5268,
+                        6.527,
+                        6.5269,
+                        6.527,
+                        6.5269,
+                        6.5268,
+                        6.5268,
+                        6.5269,
+                        6.5268,
+                        6.5268,
+                        6.5268,
+                        6.5269,
+                        6.5267,
+                        6.5266,
+                        6.5261,
+                        6.5259,
+                        6.5258,
+                        6.5261,
+                        6.5261,
+                        6.5261,
+                        6.5262,
+                        6.5261,
+                        6.5256,
+                        6.5253,
+                        6.5252,
+                        6.5253,
+                        6.5255,
+                        6.5255,
+                        6.5254,
+                        6.5255,
+                        6.5255,
+                        6.5255,
+                        6.5256,
+                        6.526,
+                        6.5262,
+                        6.5263,
+                        6.5263,
+                        6.5266
+                    ]
+                },
+                
+            }
+        }
+    ],
+    "parameters": {
+        "sea_water_temperature": {
+            "type": "Parameter",
+            "id": "sea_water_temperature",
+            "description": {
+                "en": "Sea water temperature is the in situ temperature of the sea water"
+            },
+            "observedProperty": {
+                "id": "http://vocab.nerc.ac.uk/standard_name/sea_water_temperature/",
+                "label": {
+                    "en": "Sea Water temperature"
                 }
             },
-            "ranges" : {
-                "PSAL" : {
-                "type" : "NdArray",
-                "dataType": "float",
-                "axisNames": ["t"],
-                "shape": [6],
-                "values" : [ 43.9599, 43.9599, 43.9640, 43.9640, 43.9679, 43.9879 ]
+            "unit": {
+                "label": {
+                    "en": "degree_Celsius"
                 },
-                "POTM" : {
-                "type" : "NdArray",
-                "dataType": "float",
-                "axisNames": ["t"],
-                "shape": [6],
-                "values" : [ 23.8, 23.7, 23.9, 23.4, 23.2, 22.4 ]
+                "symbol": {
+                    "value": "Cel",
+                    "type": "float"
                 }
+            },
+            "properties": {
+                "madeBySensor": "SensorURI?"
             }
+        },
+        "approved": {
+            "type": "Parameter",
+            "id": "measurement_approved",
+            "label": {
+                "en": "providers approved"
+            },
+            "description": {
+                "en": "<yes> if passed a data quality filter, <no> if not, <none> if no filter applied"
+            },
+            "observedProperty": {
+                "id": "http://id3iliad.example.com/observedProperties/approved",
+                "label": {
+                    "en": "measurement_approved"
+                },
+                "description": {
+                    "en": "Categorical property determining if the the measurement passed a quality assessment"
+                },
+                "categories": [
+                    {
+                        "id": "http://id3iliad.example.com/observedProperties/approved/yes",
+                        "label": {
+                            "en": "yes"
+                        }
+                    },
+                    {
+                        "id": "http://id3iliad.example.com/observedProperties/approved/no",
+                        "label": {
+                            "en": "no"
+                        }
+                    }
+                ]
+            },
+            "categoryEncoding": {
+                "http://id3iliad.example.com/observedProperties/approved/yes": 1,
+                "http://id3iliad.example.com/observedProperties/approved/no": 0,
+                "yes": 1,
+                "no": 0
+            },
+            "properties": {
+                "seeAlso": "https://docs.influxdata.com/influxdb/v1.3/concepts/key_concepts/"
             }
+        }
+    },
+    "referencing": [
+        {
+            "coordinates": [
+                "x",
+                "y"
+            ],
+            "system": {
+                "type": "GeographicCRS",
+                "id": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+            }
+        },
+        {
+            "coordinates": [
+                "t"
+            ],
+            "system": {
+                "type": "TemporalRS",
+                "calendar": "Gregorian"
+            }
+        }
+    ]
+}
 
