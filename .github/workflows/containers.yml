@@ -9,10 +9,10 @@ on:
   workflow_run:
     workflows: ["Build"]
     types: [completed]
-    branches: [master]
+    branches: [time_series_edr_profile]
     
 env:
-  DOCKER_REPOSITORY: ${{ secrets.DOCKER_REPOSITORY || 'geopython/pygeoapi' }}
+  DOCKER_REPOSITORY: ${{ secrets.DOCKER_REPOSITORY || 'pzaborowski/pygeoapi' }}
 #  DOCKER_TEST_IMAGE: geopython/pygeoapi:test
 
 jobs:
