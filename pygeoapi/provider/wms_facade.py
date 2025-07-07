@@ -116,7 +116,7 @@ class WMSFacadeProvider(BaseProvider):
             'request': 'GetMap',
             'bbox': bbox2,
             crs_param: CRS_CODES[crs],
-            'layers': self.options['layer'],
+            'LAYERS': self.options['layer'],
             'styles': self.options.get('style', 'default'),
             'width': width,
             'height': height,
