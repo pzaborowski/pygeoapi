@@ -72,6 +72,12 @@ def test_get_typed_value():
     value = util.get_typed_value('1.c2')
     assert isinstance(value, str)
 
+    value = util.get_typed_value('true')
+    assert isinstance(value, bool)
+
+    value = util.get_typed_value('false')
+    assert isinstance(value, bool)
+
 
 def test_yaml_load(config):
     assert isinstance(config, dict)
@@ -490,7 +496,7 @@ def test_prefetcher():
         None,
         pygeofilter.ast.GeometryIntersects(
             pygeofilter.ast.Attribute(name='geometry'),
-            Geometry({'type': 'Point', 'coordinates': (2313681.8086284213, 4641307.939955416)})  # noqa
+            Geometry({'type': 'Point', 'coordinates': (2313681.808628421, 4641307.939955416), 'crs': {'properties': {'name': 'urn:ogc:def:crs:EPSG::3004'}}}) # noqa
         ),
         id='unnested-geometry-transformed-coords-explicit-input-crs-ewkt'
     ),
@@ -501,7 +507,7 @@ def test_prefetcher():
         None,
         pygeofilter.ast.GeometryIntersects(
             pygeofilter.ast.Attribute(name='geometry'),
-            Geometry({'type': 'Point', 'coordinates': (2313681.8086284213, 4641307.939955416)})  # noqa
+            Geometry({'type': 'Point', 'coordinates': (2313681.808628421, 4641307.939955416), 'crs': {'properties': {'name': 'urn:ogc:def:crs:EPSG::3004'}}}) # noqa
         ),
         id='unnested-geometry-transformed-coords-explicit-input-crs-filter-crs'
     ),
@@ -512,7 +518,7 @@ def test_prefetcher():
         None,
         pygeofilter.ast.GeometryIntersects(
             pygeofilter.ast.Attribute(name='geometry'),
-            Geometry({'type': 'Point', 'coordinates': (2313681.8086284213, 4641307.939955416)})  # noqa
+            Geometry({'type': 'Point', 'coordinates': (2313681.808628421, 4641307.939955416), 'crs': {'properties': {'name': 'urn:ogc:def:crs:EPSG::3004'}}}) # noqa
         ),
         id='unnested-geometry-transformed-coords-ewkt-crs-overrides-filter-crs'
     ),
@@ -543,3 +549,32 @@ def test_modify_pygeofilter(
         geometry_column_name=geometry_colum_name
     )
     assert result == expected
+
+
+def test_get_choice_from_headers():
+    _headers = {
+        'accept': 'text/html;q=0.5,application/ld+json',
+        'accept-encoding': 'deflate;q=0.5,gzip'
+    }
+
+    # Test various capitalizations
+    assert util.get_choice_from_headers(_headers, 'accept-language') is None
+    assert util.get_choice_from_headers(
+        {**_headers, 'accept-language': 'en;q=0.8,de;q=0.6,fr;q=0.4'},
+        'accept-language') == 'en'
+    assert util.get_choice_from_headers(
+        {**_headers, 'Accept-Language': 'en;q=0.8,de'},
+        'accept-language') == 'de'
+    assert util.get_choice_from_headers(
+        {**_headers, 'Accept-Language': 'en,de'}, 'accept-language') == 'en'
+    assert util.get_choice_from_headers(
+        {**_headers, 'ACCEPT-LANGUAGE': 'en;q=0.8,de;q=0.2,fr'},
+        'accept-language') == 'fr'
+    assert util.get_choice_from_headers(
+        {**_headers, 'accept-language': 'en_US'}, 'accept-language') == 'en_US'
+
+    assert util.get_choice_from_headers(_headers, 'accept-encoding') == 'gzip'
+    assert util.get_choice_from_headers(_headers,
+                                        'accept') == 'application/ld+json'
+    assert util.get_choice_from_headers(
+        {'accept-language': 'en_US', 'accept': '*/*'}, 'accept') == '*/*'

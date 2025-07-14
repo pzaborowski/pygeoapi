@@ -52,21 +52,32 @@ class BaseEDRProvider(BaseProvider):
         :returns: pygeoapi.provider.base_edr.BaseEDRProvider
         """
 
-        super().__init__(provider_def)
+        BaseProvider.__init__(self, provider_def)
 
-        self.instances = []
+#        self.instances = []
 
-    @classmethod
-    def register(cls):
-        def inner(fn):
-            if fn.__name__ not in EDR_QUERY_TYPES:
-                msg = 'Invalid EDR Query type'
-                LOGGER.error(msg)
-                raise ProviderInvalidDataError(msg)
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
 
-            cls.query_types.append(fn.__name__)
-            return fn
-        return inner
+        cls.query_types = [
+            name for name, function in cls.__dict__.items()
+            if name in EDR_QUERY_TYPES and callable(function)
+        ]
+
+        if not cls.query_types:
+            msg = f"{cls.__name__} does not implement any query types"
+            LOGGER.error(msg)
+            raise ProviderInvalidDataError(msg)
+
+        LOGGER.debug(
+            f'{cls.__name__} registered query types: {cls.query_types}'
+        )
+
+        if 'items' in cls.query_types:
+            LOGGER.warning(
+                f'items query is registered in {cls.__name__}, '
+                'but requests will be routed to a feature provider'
+            )
 
     def get_instance(self, instance):
         """
@@ -97,8 +108,11 @@ class BaseEDRProvider(BaseProvider):
         :param z: vertical level(s)
         :param format_: data format of output
         :param bbox: bbox geometry (for cube queries)
-        :param within: distance (for radius querires)
-        :param within_units: distance units (for radius querires)
+        :param within: distance (for radius queries)
+        :param within_units: distance units (for radius queries)
+        :param instance: instance name (for instances queries)
+        :param limit: number of records to return (for locations queries)
+        :param location_id: location identifier (for locations queries)
 
         :returns: coverage data as `dict` of CoverageJSON or native format
         """

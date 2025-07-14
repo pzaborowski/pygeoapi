@@ -10,7 +10,7 @@
 #          Francesco Martinelli <francesco.martinelli@ingv.it>
 #
 # Copyright (c) 2024 Tom Kralidis
-# Copyright (c) 2022 Francesco Bartoli
+# Copyright (c) 2025 Francesco Bartoli
 # Copyright (c) 2022 John A Stevenson and Colin Blackburn
 # Copyright (c) 2023 Ricardo Garcia Silva
 # Copyright (c) 2024 Bernhard Mallinger
@@ -49,6 +49,7 @@ from typing import Tuple
 import urllib.parse
 
 from pygeoapi import l10n
+from pygeoapi.api import evaluate_limit
 from pygeoapi.util import (
     json_serial, render_j2_template, JobStatus, RequestedProcessExecutionMode,
     to_json, DATETIME_FORMAT)
@@ -64,7 +65,7 @@ from . import (
 LOGGER = logging.getLogger(__name__)
 
 CONFORMANCE_CLASSES = [
-    'http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/ogc-process-description', # noqa
+    'http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/ogc-process-description',  # noqa
     'http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/core',
     'http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/json',
     'http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/oas30',
@@ -100,24 +101,20 @@ def describe_processes(api: API, request: APIRequest,
             relevant_processes = [process]
         else:
             LOGGER.debug('Processing limit parameter')
+            if api.config['server'].get('limit') is not None:
+                msg = ('server.limit is no longer supported! '
+                       'Please use limits at the server or collection '
+                       'level (RFC5)')
+                LOGGER.warning(msg)
             try:
-                limit = int(request.params.get('limit'))
-
-                if limit <= 0:
-                    msg = 'limit value should be strictly positive'
-                    return api.get_exception(
-                        HTTPStatus.BAD_REQUEST, headers, request.format,
-                        'InvalidParameterValue', msg)
-
+                limit = evaluate_limit(request.params.get('limit'),
+                                       api.config['server'].get('limits', {}),
+                                       {})
                 relevant_processes = list(api.manager.processes)[:limit]
-            except TypeError:
-                LOGGER.debug('returning all processes')
-                relevant_processes = api.manager.processes.keys()
-            except ValueError:
-                msg = 'limit value should be an integer'
+            except ValueError as err:
                 return api.get_exception(
                     HTTPStatus.BAD_REQUEST, headers, request.format,
-                    'InvalidParameterValue', msg)
+                    'InvalidParameterValue', str(err))
 
         for key in relevant_processes:
             p = api.manager.get_processor(key)
@@ -214,13 +211,14 @@ def describe_processes(api: API, request: APIRequest,
 
     if request.format == F_HTML:  # render
         if process is not None:
-            response = render_j2_template(api.tpl_config,
+            tpl_config = api.get_dataset_templates(process)
+            response = render_j2_template(api.tpl_config, tpl_config,
                                           'processes/process.html',
                                           response, request.locale)
         else:
-            response = render_j2_template(api.tpl_config,
-                                          'processes/index.html', response,
-                                          request.locale)
+            response = render_j2_template(
+                api.tpl_config, api.config['server']['templates'],
+                'processes/index.html', response, request.locale)
 
         return headers, HTTPStatus.OK, response
 
@@ -243,21 +241,13 @@ def get_jobs(api: API, request: APIRequest,
                                            **api.api_headers)
     LOGGER.debug('Processing limit parameter')
     try:
-        limit = int(request.params.get('limit'))
-
-        if limit <= 0:
-            msg = 'limit value should be strictly positive'
-            return api.get_exception(
-                HTTPStatus.BAD_REQUEST, headers, request.format,
-                'InvalidParameterValue', msg)
-    except TypeError:
-        limit = int(api.config['server']['limit'])
-        LOGGER.debug('returning all jobs')
-    except ValueError:
-        msg = 'limit value should be an integer'
+        limit = evaluate_limit(request.params.get('limit'),
+                               api.config['server'].get('limits', {}),
+                               {})
+    except ValueError as err:
         return api.get_exception(
             HTTPStatus.BAD_REQUEST, headers, request.format,
-            'InvalidParameterValue', msg)
+            'InvalidParameterValue', str(err))
 
     LOGGER.debug('Processing offset parameter')
     try:
@@ -282,7 +272,7 @@ def get_jobs(api: API, request: APIRequest,
         #       Here we do sort again in case the provider doesn't support
         #       pagination yet and always returns all jobs.
         jobs = sorted(jobs_data['jobs'],
-                      key=lambda k: k['job_start_datetime'],
+                      key=lambda k: k['started'],
                       reverse=True)
         numberMatched = jobs_data['numberMatched']
 
@@ -318,8 +308,10 @@ def get_jobs(api: API, request: APIRequest,
             'message': job_['message'],
             'progress': job_['progress'],
             'parameters': job_.get('parameters'),
-            'job_start_datetime': job_['job_start_datetime'],
-            'job_end_datetime': job_['job_end_datetime']
+            'created': job_['created'],
+            'started': job_['started'],
+            'finished': job_['finished'],
+            'updated': job_['updated']
         }
 
         # TODO: translate
@@ -402,8 +394,10 @@ def get_jobs(api: API, request: APIRequest,
             'offset': offset,
             'now': datetime.now(timezone.utc).strftime(DATETIME_FORMAT)
         }
-        response = render_j2_template(api.tpl_config, j2_template, data,
-                                      request.locale)
+        response = render_j2_template(
+            api.tpl_config, api.config['server']['templates'], j2_template,
+            data, request.locale)
+
         return headers, HTTPStatus.OK, response
 
     return headers, HTTPStatus.OK, to_json(serialized_jobs,
@@ -594,8 +588,8 @@ def get_job_result(api: API, request: APIRequest,
                 'result': job_output
             }
             content = render_j2_template(
-                api.config, 'jobs/results/index.html',
-                data, request.locale)
+                api.config, api.config['server']['templates'],
+                'jobs/results/index.html', data, request.locale)
 
     return headers, HTTPStatus.OK, content
 
@@ -731,6 +725,16 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
                 'description': md_desc,
                 'tags': [name],
                 'operationId': f'execute{name.capitalize()}Job',
+                'parameters': [{
+                    'in': 'header',
+                    'name': 'Prefer',
+                    'required': False,
+                    'description': 'Indicates client preferences, including whether the client is capable of asynchronous processing.',  # noqa
+                    'schema': {
+                        'type': 'string',
+                        'enum': ['respond-async']
+                    }
+                }],
                 'responses': {
                     '200': {'$ref': '#/components/responses/200'},
                     '201': {'$ref': f"{OPENAPI_YAML['oapip']}/responses/ExecuteAsync.yaml"},  # noqa
@@ -751,6 +755,25 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
                 }
             }
         }
+
+        try:
+            first_key = list(p.metadata['outputs'])[0]
+            p_output = p.metadata['outputs'][first_key]
+
+            if p_output.get('schema') is not None:
+                LOGGER.debug('Adding output schema')
+                content_media_type = p_output['schema'].pop('contentMediaType', 'application/json')  # noqa
+                paths[f'{process_name_path}/execution']['post']['responses']['200'] = {  # noqa
+                    'description': 'Process output schema',
+                    'content': {
+                        content_media_type: {
+                            'schema': p_output['schema']
+                        }
+                    }
+                }
+        except (IndexError, KeyError):
+            LOGGER.debug('No output defined')
+
         if 'example' in p.metadata:
             paths[f'{process_name_path}/execution']['post']['requestBody']['content']['application/json']['example'] = p.metadata['example']  # noqa
 

@@ -49,13 +49,14 @@ from sqlalchemy import insert, update, delete
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
+from pygeoapi.api import FORMAT_TYPES, F_JSON, F_JSONLD
 from pygeoapi.process.base import (
     JobNotFoundError,
     JobResultNotFoundError,
     ProcessorGenericError
 )
 from pygeoapi.process.manager.base import BaseManager
-from pygeoapi.provider.postgresql import get_engine, get_table_model
+from pygeoapi.provider.sql import get_engine, get_table_model
 from pygeoapi.util import JobStatus
 
 
@@ -91,13 +92,15 @@ class PostgreSQLManager(BaseManager):
             if isinstance(self.connection, str):
                 _url = make_url(self.connection)
                 self._engine = get_engine(
+                    'postgresql+psycopg2',
                     _url.host,
                     _url.port,
                     _url.database,
                     _url.username,
                     _url.password)
             else:
-                self._engine = get_engine(**self.connection)
+                self._engine = get_engine('postgresql+psycopg2',
+                                          **self.connection)
         except Exception as err:
             msg = 'Test connecting to DB failed'
             LOGGER.error(f'{msg}: {err}')
@@ -292,8 +295,13 @@ class PostgreSQLManager(BaseManager):
         else:
             try:
                 location = Path(location)
-                with location.open(encoding='utf-8') as fh:
-                    result = json.load(fh)
+                if mimetype in (None, FORMAT_TYPES[F_JSON],
+                                FORMAT_TYPES[F_JSONLD]):
+                    with location.open('r', encoding='utf-8') as fh:
+                        result = json.load(fh)
+                else:
+                    with location.open('rb') as fh:
+                        result = fh.read()
             except (TypeError, FileNotFoundError, json.JSONDecodeError):
                 raise JobResultNotFoundError()
             else:

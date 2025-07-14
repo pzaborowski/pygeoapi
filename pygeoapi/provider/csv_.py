@@ -2,7 +2,7 @@
 #
 # Authors: Tom Kralidis <tomkralidis@gmail.com>
 #
-# Copyright (c) 2022 Tom Kralidis
+# Copyright (c) 2025 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -32,8 +32,11 @@ import csv
 import itertools
 import logging
 
-from pygeoapi.provider.base import (BaseProvider, ProviderQueryError,
-                                    ProviderItemNotFoundError)
+from shapely.geometry import box, Point
+
+from pygeoapi.provider.base import (BaseProvider, ProviderInvalidQueryError,
+                                    ProviderItemNotFoundError,
+                                    ProviderQueryError)
 from pygeoapi.util import get_typed_value, crs_transform
 
 LOGGER = logging.getLogger(__name__)
@@ -98,6 +101,7 @@ class CSVProvider(BaseProvider):
         :param limit: number of records to return (default 10)
         :param datetime_: temporal (datestamp or extent)
         :param resulttype: return results or hit limit (default results)
+        :param bbox: bounding box [minx,miny,maxx,maxy]
         :param properties: list of tuples (name, value)
         :param select_properties: list of property names
         :param skip_geometry: bool of whether to skip geometry (default False)
@@ -119,15 +123,29 @@ class CSVProvider(BaseProvider):
         with open(self.data) as ff:
             LOGGER.debug('Serializing DictReader')
             data_ = csv.DictReader(ff)
+
             if properties:
+                for prop in properties:
+                    if prop[0] not in data_.fieldnames:
+                        msg = 'Invalid fieldname'
+                        LOGGER.error(msg)
+                        raise ProviderInvalidQueryError(msg)
+
                 data_ = filter(
                     lambda p: all(
                         [p[prop[0]] == prop[1] for prop in properties]), data_)
+
+            if bbox:
+                LOGGER.debug('processing bbox parameter')
+                data_ = filter(
+                    lambda f: all(
+                        [self._intersects(f, bbox)]), data_)
 
             if resulttype == 'hits':
                 LOGGER.debug('Returning hits only')
                 feature_collection['numberMatched'] = len(list(data_))
                 return feature_collection
+
             LOGGER.debug('Slicing CSV rows')
             for row in itertools.islice(data_, 0, None):
                 try:
@@ -136,9 +154,10 @@ class CSVProvider(BaseProvider):
                         float(row.pop(self.geometry_y)),
                     ]
                 except ValueError:
-                    msg = f'Skipping row with invalid geometry: {row.get(self.id_field)}'  # noqa
-                    LOGGER.error(msg)
-                    continue
+                    msg = f'Row with invalid geometry: {row.get(self.id_field)}, setting coordinates to None'  # noqa
+                    LOGGER.warning(msg)
+                    coordinates = None
+
                 feature = {'type': 'Feature'}
                 feature['id'] = row.pop(self.id_field)
                 if not skip_geometry:
@@ -185,6 +204,24 @@ class CSVProvider(BaseProvider):
 
         return feature_collection
 
+    def _intersects(self, data, bbox):
+        """
+        Helper function to evaluate point geometry intersection with a bbox
+
+        :param geometry: `dict` of CSV row
+        :param bbox: `list` of bbox
+
+        :returns: `bool` of whether point geometry intersects with bbox
+        """
+
+        if None in [data.get(self.geometry_x), data.get(self.geometry_y)]:
+            return True
+
+        point = Point(data[self.geometry_x], data[self.geometry_y])
+        bbox2 = box(*bbox)
+
+        return bbox2.intersects(point)
+
     @crs_transform
     def query(self, offset=0, limit=10, resulttype='results',
               bbox=[], datetime_=None, properties=[], sortby=[],
@@ -207,7 +244,7 @@ class CSVProvider(BaseProvider):
         """
 
         return self._load(offset, limit, resulttype,
-                          properties=properties,
+                          bbox=bbox, properties=properties,
                           select_properties=select_properties,
                           skip_geometry=skip_geometry)
 

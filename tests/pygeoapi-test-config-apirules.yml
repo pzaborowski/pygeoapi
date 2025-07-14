@@ -43,7 +43,9 @@ server:
         - fr-CA
     cors: true
     pretty_print: true
-    limit: 10
+    limits:
+        default_items: 10
+        max_items: 10
     # templates: /path/to/templates
     map:
         url: https://tile.openstreetmap.org/{z}/{x}/{y}.png
@@ -291,8 +293,6 @@ resources:
               title: data source
               href: https://en.wikipedia.org/wiki/GeoJSON
               hreflang: en-US
-        linked-data:
-            item_template: tests/data/base.jsonld
         extents:
             spatial:
                 bbox: [-180,-90,180,90]

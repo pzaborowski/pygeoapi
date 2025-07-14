@@ -14,13 +14,22 @@ Providers
 ---------
 
 pygeoapi core EDR providers are listed below, along with a matrix of supported query
-parameters.
+types and query arguments.
+
+.. csv-table::
+   :header: Provider, Position, Radius, Area, Cube, Trajectory, Corridor, Items, Locations, Instances
+   :align: left
+
+   `xarray-edr`_,✅,❌,❌,✅,❌,❌,❌,❌,❌
+   `SensorThingsEDR`_,❌,❌,✅,✅,❌,❌,✅,✅,❌
+
 
 .. csv-table::
    :header: Provider, coords, parameter-name, datetime
    :align: left
 
    `xarray-edr`_,✅,✅,✅
+   `SensorThingsEDR`_,✅,✅,✅
 
 
 Below are specific connection examples based on supported providers.
@@ -46,6 +55,7 @@ The `xarray-edr`_ provider plugin reads and extracts `NetCDF`_ and `Zarr`_ data 
          # to derive automagically
          x_field: lon
          y_field: lat
+         z_field: z
          time_field: time
          # optionally specify the coordinate reference system of your dataset
          # else pygeoapi assumes it is WGS84 (EPSG:4326).
@@ -90,6 +100,30 @@ The `xarray-edr`_ provider plugin reads and extracts `NetCDF`_ and `Zarr`_ data 
    `pyproj.CRS.from_user_input`_. 
 
 
+SensorThingsEDR
+^^^^^^^^^^^^^^^
+
+The SensorThings API EDR Provider for pygeaopi extends the feature provider to
+produce CoverageJSON representations from SensorThings responses repsonses. This provider
+relies on using the ObservedProperty Entity to create the `parameter-name` set.
+
+.. code-block:: yaml
+
+   providers:
+      - type: edr
+        name: SensorThingsEDR
+        data: https://emotional.byteroad.net/FROST-Server/v1.1/
+      - type: feature
+        name: SensorThings
+        data: https://emotional.byteroad.net/FROST-Server/v1.1/Things
+        title_field: name
+
+
+.. note::
+   The `feature` provider must also be configured to service the `.../items` 
+   EDR query type.
+
+
 Data access examples
 --------------------
 
@@ -114,6 +148,4 @@ Data access examples
 .. _`NetCDF`: https://en.wikipedia.org/wiki/NetCDF
 .. _`Zarr`: https://zarr.readthedocs.io/en/stable
 .. _`pyproj.CRS.from_user_input`: https://pyproj4.github.io/pyproj/stable/api/crs/coordinate_system.html#pyproj.crs.CoordinateSystem.from_user_input
-
-
-.. _`OGC Environmental Data Retrieval (EDR) (API)`: https://github.com/opengeospatial/ogcapi-coverages
+.. _`OGC Environmental Data Retrieval (EDR) (API)`: https://ogcapi.ogc.org/edr

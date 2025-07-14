@@ -16,23 +16,25 @@ parameters.
 
 
 .. csv-table::
-   :header: Provider, property filters/display, resulttype, bbox, datetime, sortby, skipGeometry, CQL, transactions, crs
+   :header: Provider, property filters/display, resulttype, bbox, datetime, sortby, skipGeometry, domains, CQL, transactions, crs
    :align: left
 
-   `CSV`_,✅/✅,results/hits,❌,❌,❌,✅,❌,❌,✅
-   `Elasticsearch`_,✅/✅,results/hits,✅,✅,✅,✅,✅,✅,✅
-   `ERDDAP Tabledap Service`_,❌/❌,results/hits,✅,✅,❌,❌,❌,❌,✅
-   `ESRI Feature Service`_,✅/✅,results/hits,✅,✅,✅,✅,❌,❌,✅
-   `GeoJSON`_,✅/✅,results/hits,❌,❌,❌,✅,❌,❌,✅
-   `MongoDB`_,✅/❌,results,✅,✅,✅,✅,❌,❌,✅
-   `OGR`_,✅/❌,results/hits,✅,❌,❌,✅,❌,❌,✅
-   `Oracle`_,✅/✅,results/hits,✅,❌,✅,✅,❌,❌,✅
-   `Parquet`_,✅/✅,results/hits,✅,✅,❌,✅,❌,❌,✅
-   `PostgreSQL`_,✅/✅,results/hits,✅,✅,✅,✅,✅,❌,✅
-   `SQLiteGPKG`_,✅/❌,results/hits,✅,❌,❌,✅,❌,❌,✅
-   `SensorThings API`_,✅/✅,results/hits,✅,✅,✅,✅,❌,❌,✅
-   `Socrata`_,✅/✅,results/hits,✅,✅,✅,✅,❌,❌,✅
-   `TinyDB`_,✅/✅,results/hits,✅,✅,✅,✅,❌,✅,✅
+   `CSV`_,✅/✅,results/hits,✅,❌,❌,✅,❌,❌,❌,✅
+   `Elasticsearch`_,✅/✅,results/hits,✅,✅,✅,✅,✅,✅,✅,✅
+   `ERDDAP Tabledap Service`_,❌/❌,results/hits,✅,✅,❌,❌,❌,❌,❌,✅
+   `ESRI Feature Service`_,✅/✅,results/hits,✅,✅,✅,✅,❌,❌,❌,✅
+   `GeoJSON`_,✅/✅,results/hits,✅,❌,❌,✅,❌,❌,❌,✅
+   `MongoDB`_,✅/❌,results,✅,✅,✅,✅,❌,❌,❌,✅
+   `MySQL`_,✅/✅,results/hits,✅,✅,✅,✅,❌,✅,✅,✅
+   `OGR`_,✅/❌,results/hits,✅,❌,❌,✅,❌,❌,❌,✅
+   `OpenSearch`_,✅/✅,results/hits,✅,✅,✅,✅,❌,✅,✅,✅
+   `Oracle`_,✅/✅,results/hits,✅,❌,✅,✅,❌,❌,❌,✅
+   `Parquet`_,✅/✅,results/hits,✅,✅,❌,✅,❌,❌,❌,✅
+   `PostgreSQL`_,✅/✅,results/hits,✅,✅,✅,✅,❌,✅,✅,✅
+   `SQLiteGPKG`_,✅/❌,results/hits,✅,❌,❌,✅,❌,❌,❌,✅
+   `SensorThings API`_,✅/✅,results/hits,✅,✅,✅,✅,❌,❌,✅,✅
+   `Socrata`_,✅/✅,results/hits,✅,✅,✅,✅,❌,❌,❌,✅
+   `TinyDB`_,✅/✅,results/hits,✅,✅,✅,✅,✅,❌,✅,✅
 
 .. note::
 
@@ -221,6 +223,76 @@ Here `test` is the name of database , `points` is the target collection name.
          data: mongodb://localhost:27017/testdb
          collection: testplaces
 
+
+.. _MySQL:
+
+MySQL
+^^^^^
+
+.. note::
+   Requires Python packages sqlalchemy, geoalchemy2 and pymysql
+
+Must have MySQL installed.
+
+.. code-block:: yaml
+
+   providers:
+       - type: feature
+         name: MySQL
+         data:
+             host: 127.0.0.1
+             port: 3306 # Default 3306 if not provided
+             dbname: test_geo_app
+             user: mysql
+             password: mysql
+             search_path: [test_geo_app] # Same as dbname
+         id_field: locationID
+         table: location
+         geom_field: locationCoordinates
+
+A number of database connection options can be also configured in the provider in order to adjust properly the sqlalchemy engine client.
+These are optional and if not specified, the default from the engine will be used. Please see also `SQLAlchemy docs <https://docs.sqlalchemy.org/en/14/core/engines.html#custom-dbapi-connect-arguments-on-connect-routines>`_.
+
+.. code-block:: yaml
+
+    providers:
+       - type: feature
+         name: MySQL
+         data:
+             host: 127.0.0.1
+             port: 3306 # Default 3306 if not provided
+             dbname: test_geo_app
+             user: mysql
+             password: mysql
+             search_path: [test_geo_app] # Same as dbname
+         options:
+             # Maximum time to wait while connecting, in seconds.
+             connect_timeout: 10
+             # Number of *milliseconds* that transmitted data may remain
+             # unacknowledged before a connection is forcibly closed.
+             tcp_user_timeout: 10000
+             # Whether client-side TCP keepalives are used. 1 = use keepalives,
+             # 0 = don't use keepalives.
+             keepalives: 1
+             # Number of seconds of inactivity after which TCP should send a
+             # keepalive message to the server.
+             keepalives_idle: 5
+             # Number of TCP keepalives that can be lost before the client's
+             # connection to the server is considered dead.
+             keepalives_count: 5
+             # Number of seconds after which a TCP keepalive message that is not
+             # acknowledged by the server should be retransmitted.
+             keepalives_interval: 1
+         id_field: locationID
+         table: location
+         geom_field: locationCoordinates
+
+This provider has support for the CQL queries as indicated in the Provider table above.
+
+.. seealso::
+  :ref:`cql` for more details on how to use Common Query Language (CQL) to filter the collection with specific queries.
+
+
 OGR
 ^^^
 
@@ -321,6 +393,44 @@ The OGR provider requires a recent (3+) version of GDAL to be installed.
    the default applies).
    The `crs` query parameter is used as follows:
    e.g. ``http://localhost:5000/collections/foo/items?crs=http%3A%2F%2Fwww.opengis.net%2Fdef%2Fcrs%2FEPSG%2F0%2F28992``.
+
+.. _OpenSearch:
+
+OpenSearch
+^^^^^^^^^^
+
+.. note::
+   Requires Python package opensearch-py
+
+To publish an OpenSearch index, the following are required in your index:
+
+* indexes must be documents of valid GeoJSON Features
+* index mappings must define the GeoJSON ``geometry`` as a ``geo_shape``
+
+.. code-block:: yaml
+
+   providers:
+       - type: feature
+         name: OpenSearch
+         editable: true|false  # optional, default is false
+         data: http://localhost:9200/ne_110m_populated_places_simple
+         id_field: geonameid
+         time_field: datetimefield
+
+.. note::
+
+   For OpenSearch indexes that are password protect, a RFC1738 URL can be used as follows:
+
+   ``data: http://username:password@localhost:9200/ne_110m_populated_places_simple``
+
+   To further conceal authentication credentials, environment variables can be used:
+
+   ``data: http://${MY_USERNAME}:${MY_PASSWORD}@localhost:9200/ne_110m_populated_places_simple``
+
+The OpenSearch provider also has the support for the CQL queries as indicated in the table above.
+
+.. seealso::
+  :ref:`cql` for more details on how to use Common Query Language (CQL) to filter the collection with specific queries.
 
 .. _Oracle:
 
@@ -499,9 +609,6 @@ PostgreSQL
 
 Must have PostGIS installed.
 
-.. note::
-   Geometry must be using EPSG:4326
-
 .. code-block:: yaml
 
    providers:
@@ -628,6 +735,10 @@ If ``intralink`` is true for an adjacent STA provider collection within a
 pygeoapi instance, the expanded entity is instead represented by an intra-pygeoapi
 link to the other entity or it's ``uri_field`` if declared.
 
+Additionally there is the optional field ``expand``. This field will overwrite the default
+pygeoapi expand behavior and instead implement the configured expand strategy. This is
+particularly useful if you have Datastreams with many observations.
+
 .. code-block:: yaml
 
    providers:
@@ -638,6 +749,7 @@ link to the other entity or it's ``uri_field`` if declared.
          entity: Datastreams
          time_field: phenomenonTime
          intralink: true
+         expand: Thing/Locations,Observations($select=result,phenomenonTime;$orderby=phenomenonTime desc;$top=1)
 
 If all three entities are configured, the STA provider will represent a complete STA
 endpoint as OGC-API feature collections. The ``Things`` features will include links
@@ -711,18 +823,35 @@ Data access examples
 * list all collections
 
   * http://localhost:5000/collections
+
 * overview of dataset
 
   * http://localhost:5000/collections/foo
+
 * queryables
 
   * http://localhost:5000/collections/foo/queryables
+
+* queryables on specific properties
+
+  * http://localhost:5000/collections/foo/queryables?properties=title,type
+
+* queryables with current domain values
+
+  * http://localhost:5000/collections/foo/queryables?profile=actual-domain
+
+* queryables on specific properties with current domain values
+
+  * http://localhost:5000/collections/foo/queryables?profile=actual-domain&properties=title,type
+
 * browse features
 
   * http://localhost:5000/collections/foo/items
+
 * paging
 
   * http://localhost:5000/collections/foo/items?offset=10&limit=10
+
 * CSV outputs
 
   * http://localhost:5000/collections/foo/items?f=csv
@@ -735,24 +864,31 @@ Data access examples
 * query features (attribute)
 
   * http://localhost:5000/collections/foo/items?propertyname=foo
+
 * query features (temporal)
 
   * http://localhost:5000/collections/foo/items?datetime=2020-04-10T14:11:00Z
+
 * query features (temporal) and sort ascending by a property (if no +/- indicated, + is assumed)
 
   * http://localhost:5000/collections/foo/items?datetime=2020-04-10T14:11:00Z&sortby=+datetime
+
 * query features (temporal) and sort descending by a property
 
   * http://localhost:5000/collections/foo/items?datetime=2020-04-10T14:11:00Z&sortby=-datetime
+
 * query features in a given (and supported) CRS
 
   * http://localhost:5000/collections/foo/items?crs=http%3A%2F%2Fwww.opengis.net%2Fdef%2Fcrs%2FEPSG%2F0%2F32633
+
 * query features in a given bounding BBOX and return in given CRS
 
   * http://localhost:5000/collections/foo/items?bbox=120000,450000,130000,460000&bbox-crs=http%3A%2F%2Fwww.opengis.net%2Fdef%2Fcrs%2FEPSG%2F0%2F28992&crs=http%3A%2F%2Fwww.opengis.net%2Fdef%2Fcrs%2FEPSG%2F0%2F32633
+
 * fetch a specific feature
 
   * http://localhost:5000/collections/foo/items/123
+
 * fetch a specific feature in a given (and supported) CRS
 
   * http://localhost:5000/collections/foo/items/123?crs=http%3A%2F%2Fwww.opengis.net%2Fdef%2Fcrs%2FEPSG%2F0%2F32633
@@ -774,7 +910,7 @@ Data access examples
 .. _`Feature Service`: https://enterprise.arcgis.com/en/server/latest/publish-services/windows/what-is-a-feature-service-.htm
 .. _`Map Service`: https://enterprise.arcgis.com/en/server/latest/publish-services/windows/what-is-a-map-service.htm
 .. _`Google Cloud SQL`: https://cloud.google.com/sql
-.. _`OGC API - Features`: https://www.ogc.org/standards/ogcapi-features
+.. _`OGC API - Features`: https://ogcapi.ogc.org/features
 .. _`Socrata Open Data API (SODA)`: https://dev.socrata.com
 .. _`sodapy`: https://github.com/xmunoz/sodapy
 .. _`Tabledap`: https://coastwatch.pfeg.noaa.gov/erddap/tabledap/documentation.html

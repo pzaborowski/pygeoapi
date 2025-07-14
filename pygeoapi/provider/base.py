@@ -2,7 +2,7 @@
 #
 # Authors: Tom Kralidis <tomkralidis@gmail.com>
 #
-# Copyright (c) 2022 Tom Kralidis
+# Copyright (c) 2025 Tom Kralidis
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -69,6 +69,7 @@ class BaseProvider:
         self.uri_field = provider_def.get('uri_field')
         self.x_field = provider_def.get('x_field')
         self.y_field = provider_def.get('y_field')
+        self.z_field = provider_def.get('z_field')
         self.time_field = provider_def.get('time_field')
         self.title_field = provider_def.get('title_field')
         self.properties = provider_def.get('properties', [])
@@ -141,6 +142,20 @@ class BaseProvider:
 
         :returns: `dict` of metadata construct (format
                   determined by provider/standard)
+        """
+
+        raise NotImplementedError()
+
+    def get_domains(self, properties=[], current=False):
+        """
+        Get domains from dataset
+
+        :param properties: `list` of property names
+        :param current: `bool` of whether to provide list of live
+                        values (default `False`)
+
+        :returns: `tuple` of domains and whether they are based on the
+                  current/live dataset
         """
 
         raise NotImplementedError()
