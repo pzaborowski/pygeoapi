@@ -1,6 +1,7 @@
 # =================================================================
 #
 # Authors: Tom Kralidis <tomkralidis@gmail.com>
+# Piotr Zaborowski <pastich@gmail.com> - typed extension
 #
 # Copyright (c) 2022 Tom Kralidis
 #
@@ -55,14 +56,6 @@ class CSVTypedProvider(CSVProvider):
         super().__init__(provider_def)
         self.feature_type_field = provider_def['type_field']
         self.context = provider_def['context_value']
-
-    def get_fields(self):
-        """
-         Get provider field information (names, types)
-
-        :returns: dict of fields
-        """
-        return super().get_fields()
 
     def _load(self, offset=0, limit=10, resulttype='results',
               identifier=None, bbox=[], datetime_=None, properties=[],
@@ -125,6 +118,7 @@ class CSVTypedProvider(CSVProvider):
                 else:
                     feature['geometry'] = None
 
+                # Generate custom properties - extension point for the typed CSV with nested structures
                 self.generate_custom_data(select_properties, row, feature)
 
                 if identifier is not None and feature['id'] == identifier:
@@ -190,23 +184,3 @@ class CSVTypedProvider(CSVProvider):
                           properties=properties,
                           select_properties=select_properties,
                           skip_geometry=skip_geometry)
-
-    @crs_transform
-    def get(self, identifier, **kwargs):
-        """
-        query CSV id
-
-        :param identifier: feature id
-
-        :returns: dict of single GeoJSON feature
-        """
-        item = self._load(identifier=identifier)
-        if item:
-            return item
-        else:
-            err = f'item {identifier} not found'
-            LOGGER.error(err)
-            raise ProviderItemNotFoundError(err)
-
-    def __repr__(self):
-        return f'<CSVProvider> {self.data}'
