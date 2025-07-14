@@ -67,7 +67,7 @@ PLUGINS = {
         'WMTSFacade': 'pygeoapi.provider.wmts_facade.WMTSFacadeProvider',
         'xarray': 'pygeoapi.provider.xarray_.XarrayProvider',
         'xarray-edr': 'pygeoapi.provider.xarray_edr.XarrayEDRProvider',
-        'CSVTyped': 'pygeoapi.provider.csv_typed.CSVTypedProvider'
+        'CSVTyped': 'pygeoapi.provider.csv_.CSVProvider'
     },
     'formatter': {
         'CSV': 'pygeoapi.formatter.csv_.CSVFormatter'

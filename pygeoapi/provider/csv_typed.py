@@ -57,6 +57,38 @@ class CSVTypedProvider(CSVProvider):
         self.feature_type_field = provider_def['type_field']
         self.context = provider_def['context_value']
 
+    def get_fields(self):
+        """
+         Get provider field information (names, types)
+
+        :returns: dict of fields
+        """
+        if not self._fields:
+            LOGGER.debug('Treating all columns as string types')
+            with open(self.data) as ff:
+                LOGGER.debug('Serializing DictReader')
+                data_ = csv.DictReader(ff)
+
+                row = next(data_)
+
+                for key, value in row.items():
+                    LOGGER.debug(f'key: {key}, value: {value}')
+                    value2 = get_typed_value(value)
+                    if key in [self.geometry_x, self.geometry_y]:
+                        continue
+                    if key == self.id_field:
+                        type_ = 'string'
+                    elif isinstance(value2, float):
+                        type_ = 'number'
+                    elif isinstance(value2, int):
+                        type_ = 'integer'
+                    else:
+                        type_ = 'string'
+
+                    self._fields[key] = {'type': type_}
+
+        return self._fields
+
     def _load(self, offset=0, limit=10, resulttype='results',
               identifier=None, bbox=[], datetime_=None, properties=[],
               select_properties=[], skip_geometry=False, q=None):
@@ -184,3 +216,23 @@ class CSVTypedProvider(CSVProvider):
                           properties=properties,
                           select_properties=select_properties,
                           skip_geometry=skip_geometry)
+
+    @crs_transform
+    def get(self, identifier, **kwargs):
+        """
+        query CSV id
+
+        :param identifier: feature id
+
+        :returns: dict of single GeoJSON feature
+        """
+        item = self._load(identifier=identifier)
+        if item:
+            return item
+        else:
+            err = f'item {identifier} not found'
+            LOGGER.error(err)
+            raise ProviderItemNotFoundError(err)
+
+    def __repr__(self):
+        return f'<CSVProvider> {self.data}'
