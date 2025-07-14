@@ -124,7 +124,7 @@ def test_get_collection_edr_query(config, api_):
     # bounded date range
     req = mock_api_request({
         'coords': 'POINT(11 11)',
-        'datetime': '2000-01-17/2000-06-16'
+        'datetime': '2000-01-17/2000-08-16'
     })
     rsp_headers, code, response = get_collection_edr_query(
         api_, req, 'icoads-sst', None, 'position')
@@ -134,6 +134,7 @@ def test_get_collection_edr_query(config, api_):
     time_dict = data['domain']['axes']['t']
     assert isinstance(time_dict, dict)
     assert isinstance(time_dict['values'], list)
+
 
     t_values = [
         '2000-02-15T16:29:05.999999999',
@@ -145,10 +146,11 @@ def test_get_collection_edr_query(config, api_):
 
     assert sorted(time_dict['values']) == t_values
 
+
     # unbounded date range - start
     req = mock_api_request({
         'coords': 'POINT(11 11)',
-        'datetime': '../2000-06-16'
+        'datetime': '../2000-08-16'
     })
     rsp_headers, code, response = get_collection_edr_query(
         api_, req, 'icoads-sst', None, 'position')
@@ -173,7 +175,7 @@ def test_get_collection_edr_query(config, api_):
     # unbounded date range - end
     req = mock_api_request({
         'coords': 'POINT(11 11)',
-        'datetime': '2000-06-16/..'
+        'datetime': '2000-08-16/..'
     })
     rsp_headers, code, response = get_collection_edr_query(
         api_, req, 'icoads-sst', None, 'position')
@@ -196,9 +198,10 @@ def test_get_collection_edr_query(config, api_):
 
     assert sorted(time_dict['values']) == t_values
 
+
     # some data
     req = mock_api_request({
-        'coords': 'POINT(11 11)', 'datetime': '2000-01-16'
+        'coords': 'POINT(11 11)', 'datetime': '2000-06-16'
     })
     rsp_headers, code, response = get_collection_edr_query(
         api_, req, 'icoads-sst', None, 'position')
