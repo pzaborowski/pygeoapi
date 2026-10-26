@@ -414,6 +414,13 @@ def get_collection_edr_query(api: API, request: APIRequest,
             HTTPStatus.BAD_REQUEST, headers, request.format,
             'InvalidParameterValue', str(err))
 
+    LOGGER.debug('Processing custom dimension parameters')
+    custom_dimensions = {}
+    for dimension in getattr(p, 'get_custom_dimensions', list)() or []:
+        value = request.params.get(dimension['id'])
+        if value is not None:
+            custom_dimensions[dimension['id']] = value
+
     query_args = dict(
         query_type=query_type,
         instance=instance,
@@ -431,7 +438,8 @@ def get_collection_edr_query(api: API, request: APIRequest,
         height_units=height_units,
         limit=limit,
         location_id=location_id,
-        crs_transform_spec=crs_transform_spec
+        crs_transform_spec=crs_transform_spec,
+        custom_dimensions=custom_dimensions
     )
 
     try:
@@ -561,6 +569,18 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
                         'op_id': f'query{qt.capitalize()}Instance{k.capitalize()}'  # noqa
                     })
 
+            custom_parameters = []
+            for dimension in getattr(ep, 'get_custom_dimensions', list)() or []:  # noqa
+                custom_parameters.append({
+                    'name': dimension['id'],
+                    'in': 'query',
+                    'required': False,
+                    'description': dimension.get('description', dimension['id']),  # noqa
+                    'schema': {'type': 'string'},
+                    'style': 'form',
+                    'explode': False
+                })
+
             for eqe in edr_query_endpoints:
                 if eqe['qt'] == 'cube':
                     spatial_parameter = {
@@ -602,6 +622,7 @@ def get_oas_30(cfg: dict, locale: str) -> tuple[list[dict[str, str]], dict[str, 
                             {'$ref': f"{OPENAPI_YAML['oaedr']}/parameters/z.yaml"},  # noqa
                             {'$ref': '#/components/parameters/crs'},
                             coll_f_parameter,
+                            *custom_parameters
                         ],
                         'responses': {
                             '200': {

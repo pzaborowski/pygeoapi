@@ -407,6 +407,11 @@ def gen_collection(api, request, dataset: str,
         data['data_queries'] = {}
         data['parameter_names'] = p.get_parameters()
 
+        custom_dimensions = getattr(p, 'get_custom_dimensions', list)()
+        if custom_dimensions:
+            LOGGER.debug('Adding EDR custom dimensions')
+            data.setdefault('extent', {})['custom'] = custom_dimensions
+
         for qt in p.get_query_types():
             data_query = {
                 'link': {

@@ -105,6 +105,19 @@ class BaseEDRProvider(BaseProvider):
 
         return self.query_types
 
+    def get_custom_dimensions(self) -> list:
+        """
+        Provide custom dimensions of the collection (OGC API - EDR
+        extent.custom). Each custom dimension can be queried with a query
+        parameter of the same name as its `id`; the raw value is passed to
+        `query()` in the `custom_dimensions` keyword argument.
+
+        :returns: `list` of `dict` with `id`, `interval`, `values`,
+                  `reference` and optionally `description`
+        """
+
+        return []
+
     def get_parameters(
         self, parameters: set | list = [], as_list=False
     ) -> dict | list:
@@ -172,6 +185,8 @@ class BaseEDRProvider(BaseProvider):
         :param instance: instance name (for instances queries)
         :param limit: number of records to return (for locations queries)
         :param location_id: location identifier (for locations queries)
+        :param custom_dimensions: `dict` of custom dimension id to the raw
+                                  query value (see get_custom_dimensions)
 
         :returns: coverage data as `dict` of CoverageJSON or native format
         """
